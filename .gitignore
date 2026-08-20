@@ -1,0 +1,31 @@
+# .NET build output
+**/bin/
+**/obj/
+
+# User-specific Visual Studio / VS Code files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+
+# .NET user secrets
+secrets.json
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test results
+TestResults/
