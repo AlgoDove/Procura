@@ -17,7 +17,7 @@ namespace Procura.API.Modules.ProcurementRequest.Repositories
             _context = context;
         }
 
-        public async Task<Entities.ProcurementRequest> GetByIdAsync(Guid id)
+        public async Task<Entities.ProcurementRequest?> GetByIdAsync(Guid id)
         {
             return await _context.ProcurementRequests
                 .Include(pr => pr.Items)
@@ -64,8 +64,26 @@ namespace Procura.API.Modules.ProcurementRequest.Repositories
         public async Task<string> GenerateUniqueRequestNumberAsync()
         {
             var year = DateTime.UtcNow.Year;
-            var count = await _context.ProcurementRequests.CountAsync(r => r.CreatedAt.Year == year);
-            return $"PR-{year}-{count + 1:D5}";
+            var prefix = $"PR-{year}-";
+            var existingNumbers = await _context.ProcurementRequests
+                .Where(r => r.RequestNumber.StartsWith(prefix))
+                .Select(r => r.RequestNumber)
+                .ToListAsync();
+
+            int maxSeq = 0;
+            foreach (var num in existingNumbers)
+            {
+                if (num.Length > prefix.Length)
+                {
+                    var suffix = num.Substring(prefix.Length);
+                    if (int.TryParse(suffix, out int seq) && seq > maxSeq)
+                    {
+                        maxSeq = seq;
+                    }
+                }
+            }
+
+            return $"{prefix}{maxSeq + 1:D5}";
         }
 
         public async Task SaveChangesAsync()

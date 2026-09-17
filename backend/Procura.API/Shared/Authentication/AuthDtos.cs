@@ -13,8 +13,6 @@ namespace Procura.API.Shared.Authentication
         public string Email { get; set; } = string.Empty;
         [Required]
         public string Password { get; set; } = string.Empty;
-        [Required]
-        public SystemRole Role { get; set; }
     }
 
     public class LoginDto

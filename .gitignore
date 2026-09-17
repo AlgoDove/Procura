@@ -29,3 +29,11 @@ Thumbs.db
 
 # Test results
 TestResults/
+coverage/
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+*.mdf
+*.ldf

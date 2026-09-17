@@ -1,6 +1,28 @@
 @Procura.API_HostAddress = http://localhost:5071
 
-GET {{Procura.API_HostAddress}}/weatherforecast/
-Accept: application/json
+### Health Check
+GET {{Procura.API_HostAddress}}/health
+Accept: text/plain
 
-###
+### Login Employee
+POST {{Procura.API_HostAddress}}/api/Auth/login
+Content-Type: application/json
+
+{
+  "email": "test.employee@procura.local",
+  "password": "P@ssword123!"
+}
+
+### Get All Procurement Requests
+GET {{Procura.API_HostAddress}}/api/procurement-requests
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### AI Process Procurement Request
+POST {{Procura.API_HostAddress}}/api/procurement-requests/ai/process
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "objective": "We need 10 laptops for new software engineering interns. Each laptop should have at least 16GB RAM and an Intel i5 or AMD Ryzen 5 processor. Our approximate budget is Rs. 200,000 per laptop, and they are required by October 15, 2026."
+}
