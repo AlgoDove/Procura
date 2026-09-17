@@ -7,7 +7,7 @@ namespace Procura.API.Modules.ProcurementRequest.Repositories
 {
     public interface IProcurementRequestRepository
     {
-        Task<Entities.ProcurementRequest> GetByIdAsync(Guid id);
+        Task<Entities.ProcurementRequest?> GetByIdAsync(Guid id);
         Task<IEnumerable<Entities.ProcurementRequest>> GetAllByUserIdAsync(Guid userId);
         Task<IEnumerable<Entities.ProcurementRequest>> GetAllAsync();
         Task AddAsync(Entities.ProcurementRequest request);

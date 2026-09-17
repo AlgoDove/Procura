@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Procura.API.Shared.Entities;
 using Procura.API.Modules.ProcurementRequest.Entities;
+using Procura.API.AI.Entities;
 
 namespace Procura.API.Shared.Data
 {
@@ -11,6 +12,7 @@ namespace Procura.API.Shared.Data
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<ProcurementRequest> ProcurementRequests { get; set; } = null!;
         public DbSet<ProcurementRequestItem> ProcurementRequestItems { get; set; } = null!;
+        public DbSet<WorkflowInstance> WorkflowInstances { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -56,6 +58,17 @@ namespace Procura.API.Shared.Data
                 entity.Property(e => e.ItemName).IsRequired().HasMaxLength(150);
                 entity.Property(e => e.Description).IsRequired();
                 entity.Property(e => e.Unit).IsRequired().HasMaxLength(30);
+            });
+
+            modelBuilder.Entity<WorkflowInstance>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.RequesterId);
+                entity.HasIndex(e => e.ProcurementRequestId);
+                entity.Property(e => e.Objective).IsRequired();
+                entity.Property(e => e.CurrentStage).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.RequesterRole).IsRequired().HasMaxLength(50);
             });
         }
     }

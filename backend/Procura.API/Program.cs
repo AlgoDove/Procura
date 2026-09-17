@@ -13,10 +13,39 @@ using Procura.API.Modules.ProcurementRequest.Repositories;
 using Procura.API.Modules.ProcurementRequest.Services;
 using Procura.API.Shared.Authentication;
 using Procura.API.Shared.Data;
+using Procura.API.Shared.Middleware;
+using Procura.API.AI.Core;
+using Procura.API.AI.Gemini;
+using Procura.API.AI.Persistence;
+using Procura.API.AI.Agents.ProcurementRequest;
+using Procura.API.AI.Agents.ProcurementRequest.Tools;
+using Procura.API.AI.Orchestration;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+
+// Global Exception Handling and Problem Details
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+// Health Checks
+builder.Services.AddHealthChecks();
+
+// Configure CORS for Frontend
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:5173", "http://localhost:3000" };
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
 // Controllers + JSON enum conversion
 builder.Services.AddControllers()
@@ -26,19 +55,69 @@ builder.Services.AddControllers()
     });
 
 // Configure Database
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? "Host=localhost;Port=5432;Database=procura;Username=postgres";
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var databaseUrl = builder.Configuration["DATABASE_URL"];
+
+if (!string.IsNullOrWhiteSpace(databaseUrl) && (databaseUrl.StartsWith("postgres://") || databaseUrl.StartsWith("postgresql://")))
+{
+    try
+    {
+        var uri = new Uri(databaseUrl);
+        var userInfo = uri.UserInfo.Split(':');
+        var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Username = userInfo.Length > 0 ? userInfo[0] : "",
+            Password = userInfo.Length > 1 ? userInfo[1] : "",
+            Database = uri.AbsolutePath.TrimStart('/'),
+            SslMode = Npgsql.SslMode.Prefer
+        };
+        connectionString = npgsqlBuilder.ToString();
+    }
+    catch
+    {
+        // Fall back to default if parsing fails
+    }
+}
+
+connectionString ??= "Host=localhost;Port=5432;Database=procura;Username=postgres";
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// Dependency Injection
+// Dependency Injection - Backend
 builder.Services.AddScoped<JwtTokenGenerator>();
 builder.Services.AddScoped<IProcurementRequestRepository, ProcurementRequestRepository>();
 builder.Services.AddScoped<IProcurementRequestService, ProcurementRequestService>();
 
+// Dependency Injection - AI Subsystem
+builder.Services.Configure<GeminiOptions>(options =>
+{
+    var geminiSection = builder.Configuration.GetSection("Gemini");
+    options.Model = builder.Configuration["Gemini:Model"] ?? geminiSection["Model"];
+    options.ApiKey = builder.Configuration["Gemini:ApiKey"] ?? geminiSection["ApiKey"];
+    if (int.TryParse(builder.Configuration["Gemini:TimeoutSeconds"] ?? geminiSection["TimeoutSeconds"], out var timeout))
+        options.TimeoutSeconds = timeout;
+    if (int.TryParse(builder.Configuration["Gemini:MaxRetries"] ?? geminiSection["MaxRetries"], out var retries))
+        options.MaxRetries = retries;
+});
+
+builder.Services.AddHttpClient<IGeminiClient, GeminiClient>();
+builder.Services.AddScoped<IWorkflowRepository, WorkflowRepository>();
+builder.Services.AddSingleton<ProcurementRequestDeterministicValidator>();
+builder.Services.AddScoped<IAgentTool, ValidateDraftDataTool>();
+builder.Services.AddScoped<IAgentTool, CreateDraftRequestTool>();
+builder.Services.AddScoped<IAgentTool, GetProcurementRequestTool>();
+builder.Services.AddScoped<IAgentTool, UpdateDraftRequestTool>();
+builder.Services.AddScoped<ToolRegistry>();
+builder.Services.AddScoped<IProcurementRequestAgent, ProcurementRequestAgent>();
+builder.Services.AddScoped<IWorkflowOrchestrator, CentralOrchestrator>();
+
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-var key = jwtSettings["Key"]
+var key = builder.Configuration["JWT_SECRET"]
+    ?? builder.Configuration["Jwt:Key"]
+    ?? jwtSettings["Key"]
     ?? throw new InvalidOperationException("JWT signing key is not configured.");
     
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -88,18 +167,28 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Enable Swagger in Development
-if (app.Environment.IsDevelopment())
+app.UseExceptionHandler();
+
+// Enable Swagger in Development or if explicitly enabled via configuration
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("EnableSwagger", false))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+app.UseCors("FrontendPolicy");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
+
+public partial class Program { }

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Procura.API.Modules.ProcurementRequest.DTOs;
 using Procura.API.Modules.ProcurementRequest.Enums;
 using Procura.API.Modules.ProcurementRequest.Services;
+using Procura.API.AI.Orchestration;
+using Procura.API.AI.DTOs;
 
 namespace Procura.API.Modules.ProcurementRequest.Controllers
 {
@@ -16,10 +18,14 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
     public class ProcurementRequestsController : ControllerBase
     {
         private readonly IProcurementRequestService _service;
+        private readonly IWorkflowOrchestrator _orchestrator;
 
-        public ProcurementRequestsController(IProcurementRequestService service)
+        public ProcurementRequestsController(
+            IProcurementRequestService service,
+            IWorkflowOrchestrator orchestrator)
         {
             _service = service;
+            _orchestrator = orchestrator;
         }
 
         private Guid GetUserId()
@@ -67,7 +73,7 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
             
             // basic isolation: Employee can only view their own
             if (GetUserRole() == "EMPLOYEE" && request.RequesterId != GetUserId())
-                return Forbid();
+                return Problem(detail: "Not authorized to view this request.", statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
 
             return Ok(request);
         }
@@ -88,7 +94,7 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Forbid(ex.Message);
+                return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
             }
             catch (InvalidOperationException ex)
             {
@@ -106,7 +112,7 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
         {
             try
             {
-                await _service.DeleteAsync(id, GetUserId());
+                await _service.DeleteAsync(id, GetUserId(), GetUserRole());
                 return NoContent();
             }
             catch (KeyNotFoundException)
@@ -115,7 +121,7 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Forbid(ex.Message);
+                return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
             }
             catch (InvalidOperationException ex)
             {
@@ -138,7 +144,7 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Forbid(ex.Message);
+                return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
             }
             catch (InvalidOperationException ex)
             {
@@ -162,6 +168,70 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
             catch (InvalidOperationException ex)
             {
                 return Conflict(ex.Message);
+            }
+        }
+
+        [HttpPost("ai/process")]
+        [Authorize(Roles = "EMPLOYEE,PROCUREMENT_OFFICER,MANAGER,ADMIN")]
+        public async Task<IActionResult> ProcessAiWorkflow([FromBody] ProcessProcurementAiRequestDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var context = await _orchestrator.ProcessWorkflowAsync(
+                dto.Objective,
+                GetUserId(),
+                GetUserRole(),
+                dto.ExistingRequestId,
+                dto.WorkflowId);
+
+            var response = new WorkflowProcessResponseDto
+            {
+                WorkflowId = context.WorkflowId,
+                Status = context.Status.ToString(),
+                CurrentStage = context.CurrentStage.ToString(),
+                ProcurementRequestId = context.ProcurementRequestId,
+                RequestNumber = context.RequestNumber,
+                EstimatedTotal = context.EstimatedTotal,
+                ExecutionSummary = context.ExecutionSummary,
+                ClarificationPrompt = context.ClarificationPrompt,
+                Errors = context.Errors,
+                Plan = context.Plan,
+                AuditTrail = context.AuditTrail,
+                UpdatedAt = context.UpdatedAt
+            };
+
+            return Ok(response);
+        }
+
+        [HttpGet("ai/workflows/{id}")]
+        public async Task<IActionResult> GetWorkflowStatus(Guid id)
+        {
+            try
+            {
+                var context = await _orchestrator.GetWorkflowAsync(id, GetUserId(), GetUserRole());
+                if (context == null) return NotFound("Workflow not found.");
+
+                var response = new WorkflowProcessResponseDto
+                {
+                    WorkflowId = context.WorkflowId,
+                    Status = context.Status.ToString(),
+                    CurrentStage = context.CurrentStage.ToString(),
+                    ProcurementRequestId = context.ProcurementRequestId,
+                    RequestNumber = context.RequestNumber,
+                    EstimatedTotal = context.EstimatedTotal,
+                    ExecutionSummary = context.ExecutionSummary,
+                    ClarificationPrompt = context.ClarificationPrompt,
+                    Errors = context.Errors,
+                    Plan = context.Plan,
+                    AuditTrail = context.AuditTrail,
+                    UpdatedAt = context.UpdatedAt
+                };
+
+                return Ok(response);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
             }
         }
     }

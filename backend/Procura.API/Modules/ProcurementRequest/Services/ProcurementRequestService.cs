@@ -52,7 +52,7 @@ namespace Procura.API.Modules.ProcurementRequest.Services
             return MapToDto(request);
         }
 
-        public async Task<ProcurementRequestResponseDto> GetByIdAsync(Guid id)
+        public async Task<ProcurementRequestResponseDto?> GetByIdAsync(Guid id)
         {
             var request = await _repository.GetByIdAsync(id);
             if (request == null) return null;
@@ -92,6 +92,8 @@ namespace Procura.API.Modules.ProcurementRequest.Services
             request.Items.Clear();
             foreach (var i in dto.Items)
             {
+                // Must explicitly set Id to Guid.Empty so EF Core change tracker marks newly added
+                // items as EntityState.Added rather than EntityState.Modified on an already-tracked entity graph.
                 request.Items.Add(new ProcurementRequestItem
                 {
                     Id = Guid.Empty,
@@ -110,12 +112,14 @@ namespace Procura.API.Modules.ProcurementRequest.Services
             return MapToDto(request);
         }
 
-        public async Task DeleteAsync(Guid id, Guid requesterId)
+        public async Task DeleteAsync(Guid id, Guid requesterId, string? role = null)
         {
             var request = await _repository.GetByIdAsync(id);
             if (request == null) throw new KeyNotFoundException("Request not found.");
-            if (request.RequesterId != requesterId) throw new UnauthorizedAccessException("Not authorized to delete this request.");
-            if (request.Status != RequestStatus.DRAFT) throw new InvalidOperationException("Only DRAFT requests can be deleted.");
+            if (role != "ADMIN" && request.RequesterId != requesterId)
+                throw new UnauthorizedAccessException("Not authorized to delete this request.");
+            if (request.Status != RequestStatus.DRAFT)
+                throw new InvalidOperationException("Only DRAFT requests can be deleted.");
 
             _repository.Remove(request);
             await _repository.SaveChangesAsync();

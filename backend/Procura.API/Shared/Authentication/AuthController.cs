@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Procura.API.Shared.Data;
 using Procura.API.Shared.Entities;
+using Procura.API.Shared.Enums;
 
 namespace Procura.API.Shared.Authentication
 {
@@ -34,7 +35,7 @@ namespace Procura.API.Shared.Authentication
                 LastName = dto.LastName,
                 Email = dto.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                Role = dto.Role
+                Role = SystemRole.EMPLOYEE
             };
 
             _context.Users.Add(user);
