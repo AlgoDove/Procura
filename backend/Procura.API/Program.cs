@@ -89,7 +89,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<JwtTokenGenerator>();
 builder.Services.AddScoped<IProcurementRequestRepository, ProcurementRequestRepository>();
 builder.Services.AddScoped<IProcurementRequestService, ProcurementRequestService>();
-
+builder.Services.AddScoped<Procura.API.Modules.VendorManagement.Repositories.IVendorRepository, Procura.API.Modules.VendorManagement.Repositories.VendorRepository>();
+builder.Services.AddScoped<Procura.API.Modules.VendorManagement.Services.IVendorService, Procura.API.Modules.VendorManagement.Services.VendorService>();
 // Dependency Injection - AI Subsystem
 builder.Services.Configure<GeminiOptions>(options =>
 {
