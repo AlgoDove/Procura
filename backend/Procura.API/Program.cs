@@ -108,6 +108,8 @@ builder.Services.AddScoped<IWorkflowRepository, WorkflowRepository>();
 builder.Services.AddSingleton<ProcurementRequestDeterministicValidator>();
 builder.Services.AddScoped<IAgentTool, ValidateDraftDataTool>();
 builder.Services.AddScoped<IAgentTool, CreateDraftRequestTool>();
+builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.VendorManagement.Tools.SearchVendorsTool>();
+builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.VendorManagement.Tools.SelectVendorTool>();
 builder.Services.AddScoped<IAgentTool, GetProcurementRequestTool>();
 builder.Services.AddScoped<IAgentTool, UpdateDraftRequestTool>();
 builder.Services.AddScoped<ToolRegistry>();
