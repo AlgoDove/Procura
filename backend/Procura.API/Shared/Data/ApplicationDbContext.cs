@@ -15,6 +15,7 @@ namespace Procura.API.Shared.Data
         public DbSet<ProcurementRequestItem> ProcurementRequestItems { get; set; } = null!;
         public DbSet<WorkflowInstance> WorkflowInstances { get; set; } = null!;
         public DbSet<Vendor> Vendors { get; set; } = null!;
+        public DbSet<VendorSelection> VendorSelections { get; set; } = null!;
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -28,6 +29,13 @@ namespace Procura.API.Shared.Data
                 entity.Property(e => e.LastName).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.PasswordHash).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.Role).HasConversion<string>().IsRequired();
+            });
+
+                modelBuilder.Entity<VendorSelection>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.ProcurementRequestId);
+                entity.HasIndex(e => e.VendorId);
             });
 
             modelBuilder.Entity<ProcurementRequest>(entity =>
