@@ -89,7 +89,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<JwtTokenGenerator>();
 builder.Services.AddScoped<IProcurementRequestRepository, ProcurementRequestRepository>();
 builder.Services.AddScoped<IProcurementRequestService, ProcurementRequestService>();
-
+builder.Services.AddScoped<Procura.API.Modules.VendorManagement.Repositories.IVendorRepository, Procura.API.Modules.VendorManagement.Repositories.VendorRepository>();
+builder.Services.AddScoped<Procura.API.Modules.VendorManagement.Services.IVendorService, Procura.API.Modules.VendorManagement.Services.VendorService>();
 // Dependency Injection - AI Subsystem
 builder.Services.Configure<GeminiOptions>(options =>
 {
@@ -107,10 +108,14 @@ builder.Services.AddScoped<IWorkflowRepository, WorkflowRepository>();
 builder.Services.AddSingleton<ProcurementRequestDeterministicValidator>();
 builder.Services.AddScoped<IAgentTool, ValidateDraftDataTool>();
 builder.Services.AddScoped<IAgentTool, CreateDraftRequestTool>();
+builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.VendorManagement.Tools.SearchVendorsTool>();
+builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.VendorManagement.Tools.SelectVendorTool>();
 builder.Services.AddScoped<IAgentTool, GetProcurementRequestTool>();
 builder.Services.AddScoped<IAgentTool, UpdateDraftRequestTool>();
 builder.Services.AddScoped<ToolRegistry>();
 builder.Services.AddScoped<IProcurementRequestAgent, ProcurementRequestAgent>();
+builder.Services.AddScoped<Procura.API.AI.Agents.VendorManagement.VendorManagementDeterministicValidator>();
+builder.Services.AddScoped<Procura.API.AI.Agents.VendorManagement.IVendorManagementAgent, Procura.API.AI.Agents.VendorManagement.VendorManagementAgent>();
 builder.Services.AddScoped<IWorkflowOrchestrator, CentralOrchestrator>();
 
 // Configure JWT Authentication
