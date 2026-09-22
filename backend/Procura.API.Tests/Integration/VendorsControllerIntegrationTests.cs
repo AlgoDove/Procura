@@ -138,5 +138,121 @@ namespace Procura.API.Tests.Integration
             var secondDeactivate = await _client.PostAsync($"/api/vendors/{vendorId}/deactivate", null);
             Assert.Equal(HttpStatusCode.Conflict, secondDeactivate.StatusCode);
         }
+
+        // VM-INT-05: Unauthenticated request to protected vendor endpoint returns 401 Unauthorized
+        [Fact]
+        public async Task GetVendors_WithoutToken_Returns401()
+        {
+            using var client = _factory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = null;
+
+            var response = await client.GetAsync("/api/vendors");
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        // VM-INT-06: EMPLOYEE is forbidden from updating a vendor (PUT requires PROCUREMENT_OFFICER or ADMIN)
+        [Fact]
+        public async Task UpdateVendor_AsEmployee_Returns403()
+        {
+            var token = await RegisterAndLoginAsync($"emp3-{Guid.NewGuid()}@test.com");
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var updateBody = new
+            {
+                name = "Updated Vendor Name",
+                contactPerson = "Updated Person",
+                email = "updated@test.com",
+                phoneNumber = "0770000000",
+                category = "IT",
+                rating = 4.0
+            };
+
+            var response = await _client.PutAsJsonAsync($"/api/vendors/{Guid.NewGuid()}", updateBody);
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        // VM-INT-07: PROCUREMENT_OFFICER can update an existing vendor
+        [Fact]
+        public async Task UpdateVendor_AsProcurementOfficer_UpdatesAndReturns200()
+        {
+            var token = await RegisterAndLoginAsync($"po3-{Guid.NewGuid()}@test.com", promoteToProcurementOfficer: true);
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var createBody = new
+            {
+                name = "Original Vendor",
+                contactPerson = "Orig Person",
+                email = $"orig-{Guid.NewGuid()}@test.com",
+                phoneNumber = "0771112233",
+                category = "Office Supplies",
+                rating = 3.5
+            };
+            var createRes = await _client.PostAsJsonAsync("/api/vendors", createBody);
+            Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+            var createdJson = await createRes.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(createdJson);
+            var vendorId = doc.RootElement.GetProperty("id").GetString();
+
+            var updateBody = new
+            {
+                name = "Updated Vendor Name",
+                contactPerson = "New Person",
+                email = $"updated-{Guid.NewGuid()}@test.com",
+                phoneNumber = "0779998877",
+                category = "Office Supplies",
+                rating = 4.8
+            };
+            var updateRes = await _client.PutAsJsonAsync($"/api/vendors/{vendorId}", updateBody);
+            Assert.Equal(HttpStatusCode.OK, updateRes.StatusCode);
+
+            var updatedJson = await updateRes.Content.ReadAsStringAsync();
+            using var updatedDoc = JsonDocument.Parse(updatedJson);
+            Assert.Equal("Updated Vendor Name", updatedDoc.RootElement.GetProperty("name").GetString());
+            Assert.Equal(4.8, updatedDoc.RootElement.GetProperty("rating").GetDouble());
+        }
+
+        // VM-INT-08: Invalid vendor payload fails validation and returns 400 BadRequest
+        [Fact]
+        public async Task CreateVendor_WithInvalidRating_Returns400()
+        {
+            var token = await RegisterAndLoginAsync($"po4-{Guid.NewGuid()}@test.com", promoteToProcurementOfficer: true);
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var invalidBody = new
+            {
+                name = "Invalid Vendor",
+                contactPerson = "Person",
+                email = $"invalid-{Guid.NewGuid()}@test.com",
+                phoneNumber = "0770000000",
+                category = "Hardware",
+                rating = 9.5 // Exceeds [Range(0.0, 5.0)]
+            };
+
+            var response = await _client.PostAsJsonAsync("/api/vendors", invalidBody);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        // VM-INT-09: Swagger OpenAPI document is successfully generated and includes Bearer security scheme
+        [Fact]
+        public async Task SwaggerOpenApi_GeneratesDocument_WithBearerSecurityScheme()
+        {
+            using var client = _factory.CreateClient();
+            var response = await client.GetAsync("/swagger/v1/swagger.json");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var content = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(content);
+
+            var root = doc.RootElement;
+            Assert.True(root.TryGetProperty("paths", out var paths), "OpenAPI document must have paths.");
+            Assert.True(paths.TryGetProperty("/api/vendors", out _), "OpenAPI must include /api/vendors path.");
+            Assert.True(paths.TryGetProperty("/api/procurement-requests", out _), "OpenAPI must include /api/procurement-requests path.");
+
+            // Verify Security Definitions / Components
+            Assert.True(root.TryGetProperty("components", out var components), "OpenAPI document must have components.");
+            Assert.True(components.TryGetProperty("securitySchemes", out var schemes), "OpenAPI document must have securitySchemes.");
+            Assert.True(schemes.TryGetProperty("Bearer", out var bearerScheme), "Bearer security scheme must be configured.");
+            Assert.Equal("bearer", bearerScheme.GetProperty("scheme").GetString());
+        }
     }
 }
