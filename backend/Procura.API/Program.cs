@@ -102,6 +102,7 @@ builder.Services.AddScoped<IVendorScoringEngine, VendorScoringEngine>();
 // Dependency Injection - Vendor Managemnent Module
 builder.Services.AddScoped<Procura.API.Modules.VendorManagement.Repositories.IVendorRepository, Procura.API.Modules.VendorManagement.Repositories.VendorRepository>();
 builder.Services.AddScoped<Procura.API.Modules.VendorManagement.Services.IVendorService, Procura.API.Modules.VendorManagement.Services.VendorService>();
+
 // Dependency Injection - AI Subsystem
 builder.Services.Configure<GeminiOptions>(options =>
 {

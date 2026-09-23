@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Procura.API.AI.Agents.ProcurementRequest;
+using Procura.API.AI.Agents.VendorManagement;
+using Procura.API.AI.Agents.VendorEvaluation;
 using Procura.API.AI.Core;
 using Procura.API.AI.Entities;
 using Procura.API.AI.Persistence;
@@ -16,6 +18,8 @@ namespace Procura.API.AI.Orchestration
     {
         private readonly IWorkflowRepository _workflowRepository;
         private readonly IProcurementRequestAgent _procurementAgent;
+        private readonly IVendorManagementAgent _vendorAgent;
+        private readonly IVendorEvaluationAgent _evaluationAgent;
         private readonly ILogger<CentralOrchestrator> _logger;
 
         private const int MaxExecutionCycles = 3;
@@ -29,10 +33,14 @@ namespace Procura.API.AI.Orchestration
         public CentralOrchestrator(
             IWorkflowRepository workflowRepository,
             IProcurementRequestAgent procurementAgent,
+            IVendorManagementAgent vendorAgent,
+            IVendorEvaluationAgent evaluationAgent,
             ILogger<CentralOrchestrator> logger)
         {
             _workflowRepository = workflowRepository;
             _procurementAgent = procurementAgent;
+            _vendorAgent = vendorAgent;
+            _evaluationAgent = evaluationAgent;
             _logger = logger;
         }
 
@@ -168,14 +176,182 @@ namespace Procura.API.AI.Orchestration
                             "CentralOrchestrator",
                             "WORKFLOW_COMPLETED",
                             "STAGE_COMPLETED",
-                            $"Procurement Request Agent completed successfully. DRAFT Request: {context.RequestNumber}. Ready for future Vendor Management Agent handoff.");
+                            $"Procurement Request Agent completed successfully. DRAFT Request: {context.RequestNumber}. Ready for Vendor Management Agent handoff.");
 
                         break; // Step 1 complete; future steps remain PLANNED / NOT_STARTED
                     }
                 }
+                else if (context.CurrentStage == WorkflowStage.VENDOR_SELECTION)
+                {
+                    var step2 = context.Plan.Steps.FirstOrDefault(s => s.Stage == WorkflowStage.VENDOR_SELECTION);
+                    if (step2 != null)
+                    {
+                        step2.Status = StepStatus.IN_PROGRESS;
+                        step2.StartedAt = DateTime.UtcNow;
+                    }
+
+                    context.AddAudit(
+                        WorkflowStage.VENDOR_SELECTION,
+                        "CentralOrchestrator",
+                        "AGENT_DELEGATED",
+                        "DELEGATED",
+                        $"Delegating VENDOR_SELECTION task to {_vendorAgent.AgentName}.");
+
+                    var agentResult = await _vendorAgent.ExecuteAsync(context, ct);
+
+                    if (agentResult.Status == AgentExecutionStatus.NEEDS_USER_INPUT)
+                    {
+                        if (step2 != null)
+                        {
+                            step2.Status = StepStatus.PENDING;
+                            step2.OutcomeSummary = agentResult.ExecutionSummary;
+                        }
+
+                        context.Status = WorkflowStatus.NEEDS_USER_INPUT;
+                        context.ClarificationPrompt = agentResult.ClarificationPrompt;
+                        context.ExecutionSummary = agentResult.ExecutionSummary;
+
+                        context.AddAudit(
+                            WorkflowStage.VENDOR_SELECTION,
+                            "CentralOrchestrator",
+                            "WORKFLOW_PAUSED",
+                            "NEEDS_USER_INPUT",
+                            "Workflow paused awaiting additional user input.");
+
+                        break; // Stop safely and return to user
+                    }
+                    else if (agentResult.Status == AgentExecutionStatus.FAILED)
+                    {
+                        if (step2 != null)
+                        {
+                            step2.Status = StepStatus.FAILED;
+                            step2.OutcomeSummary = agentResult.ExecutionSummary;
+                        }
+
+                        context.Status = WorkflowStatus.FAILED;
+                        context.Errors.AddRange(agentResult.ErrorMessages);
+                        context.Errors.AddRange(agentResult.ValidationErrors);
+                        context.ExecutionSummary = agentResult.ExecutionSummary;
+
+                        context.AddAudit(
+                            WorkflowStage.VENDOR_SELECTION,
+                            "CentralOrchestrator",
+                            "WORKFLOW_FAILED",
+                            "FAILED",
+                            $"Workflow failed during VENDOR_SELECTION stage: {agentResult.ExecutionSummary}");
+
+                        break; // Stop on failure
+                    }
+                    else if (agentResult.Status == AgentExecutionStatus.COMPLETED)
+                    {
+                        if (step2 != null)
+                        {
+                            step2.Status = StepStatus.COMPLETED;
+                            step2.CompletedAt = DateTime.UtcNow;
+                            step2.OutcomeSummary = agentResult.ExecutionSummary;
+                        }
+
+                        context.ExecutionSummary = agentResult.ExecutionSummary;
+                        context.Status = WorkflowStatus.STAGE_COMPLETED;
+                        context.CurrentStage = WorkflowStage.VENDOR_EVALUATION;
+
+                        context.AddAudit(
+                            WorkflowStage.VENDOR_SELECTION,
+                            "CentralOrchestrator",
+                            "WORKFLOW_COMPLETED",
+                            "STAGE_COMPLETED",
+                            $"Vendor Management Agent completed successfully. Ready for Vendor Evaluation Agent handoff.");
+
+                        break; // Step 2 complete; future steps remain PLANNED / NOT_STARTED
+                    }
+                }
+                else if (context.CurrentStage == WorkflowStage.VENDOR_EVALUATION)
+                {
+                    var step3 = context.Plan.Steps.FirstOrDefault(s => s.Stage == WorkflowStage.VENDOR_EVALUATION);
+                    if (step3 != null)
+                    {
+                        step3.Status = StepStatus.IN_PROGRESS;
+                        step3.StartedAt = DateTime.UtcNow;
+                    }
+
+                    context.AddAudit(
+                        WorkflowStage.VENDOR_EVALUATION,
+                        "CentralOrchestrator",
+                        "AGENT_DELEGATED",
+                        "DELEGATED",
+                        $"Delegating VENDOR_EVALUATION task to {_evaluationAgent.AgentName}.");
+
+                    var agentResult = await _evaluationAgent.ExecuteAsync(context, ct);
+
+                    if (agentResult.Status == AgentExecutionStatus.NEEDS_USER_INPUT)
+                    {
+                        if (step3 != null)
+                        {
+                            step3.Status = StepStatus.PENDING;
+                            step3.OutcomeSummary = agentResult.ExecutionSummary;
+                        }
+
+                        context.Status = WorkflowStatus.NEEDS_USER_INPUT;
+                        context.ClarificationPrompt = agentResult.ClarificationPrompt;
+                        context.ExecutionSummary = agentResult.ExecutionSummary;
+
+                        context.AddAudit(
+                            WorkflowStage.VENDOR_EVALUATION,
+                            "CentralOrchestrator",
+                            "WORKFLOW_PAUSED",
+                            "NEEDS_USER_INPUT",
+                            "Workflow paused awaiting additional user input.");
+
+                        break; // Stop safely and return to user
+                    }
+                    else if (agentResult.Status == AgentExecutionStatus.FAILED)
+                    {
+                        if (step3 != null)
+                        {
+                            step3.Status = StepStatus.FAILED;
+                            step3.OutcomeSummary = agentResult.ExecutionSummary;
+                        }
+
+                        context.Status = WorkflowStatus.FAILED;
+                        context.Errors.AddRange(agentResult.ErrorMessages);
+                        context.Errors.AddRange(agentResult.ValidationErrors);
+                        context.ExecutionSummary = agentResult.ExecutionSummary;
+
+                        context.AddAudit(
+                            WorkflowStage.VENDOR_EVALUATION,
+                            "CentralOrchestrator",
+                            "WORKFLOW_FAILED",
+                            "FAILED",
+                            $"Workflow failed during VENDOR_EVALUATION stage: {agentResult.ExecutionSummary}");
+
+                        break; // Stop on failure
+                    }
+                    else if (agentResult.Status == AgentExecutionStatus.COMPLETED)
+                    {
+                        if (step3 != null)
+                        {
+                            step3.Status = StepStatus.COMPLETED;
+                            step3.CompletedAt = DateTime.UtcNow;
+                            step3.OutcomeSummary = agentResult.ExecutionSummary;
+                        }
+
+                        context.ExecutionSummary = agentResult.ExecutionSummary;
+                        context.Status = WorkflowStatus.STAGE_COMPLETED;
+                        context.CurrentStage = WorkflowStage.APPROVAL_WORKFLOW;
+
+                        context.AddAudit(
+                            WorkflowStage.VENDOR_EVALUATION,
+                            "CentralOrchestrator",
+                            "WORKFLOW_COMPLETED",
+                            "STAGE_COMPLETED",
+                            $"Vendor Evaluation Agent completed successfully. Top recommendation generated. Ready for Approval Workflow Agent handoff.");
+
+                        break; // Step 3 complete; future steps remain PLANNED / NOT_STARTED
+                    }
+                }
                 else
                 {
-                    // Future agents (Steps 2-4) will plug in here
+                    // Future agents (Step 4: ApprovalWorkflow) will plug in here
                     _logger.LogInformation("Workflow stage {Stage} is planned for future agent integration.", context.CurrentStage);
                     break;
                 }
