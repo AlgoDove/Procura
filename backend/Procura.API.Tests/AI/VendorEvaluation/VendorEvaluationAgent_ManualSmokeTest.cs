@@ -16,7 +16,7 @@ using Procura.API.Modules.VendorEvaluation.Services;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Procura.API.Tests.AI.Agents.VendorEvaluation
+namespace Procura.API.Tests.AI.VendorEvaluation
 {
     /// <summary>
     /// Manual smoke tests that call the REAL Gemini API.

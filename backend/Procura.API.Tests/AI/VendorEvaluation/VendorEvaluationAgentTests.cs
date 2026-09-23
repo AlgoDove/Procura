@@ -13,7 +13,7 @@ using Procura.API.Modules.VendorEvaluation.DTOs;
 using Procura.API.Modules.VendorEvaluation.Services;
 using Xunit;
 
-namespace Procura.API.Tests.AI.Agents.VendorEvaluation
+namespace Procura.API.Tests.AI.VendorEvaluation
 {
     public class VendorEvaluationAgentTests
     {
