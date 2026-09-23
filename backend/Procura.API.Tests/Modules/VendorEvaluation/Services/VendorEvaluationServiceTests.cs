@@ -273,5 +273,73 @@ namespace Procura.API.Tests.Modules.VendorEvaluation.Services
             _repositoryMock.Verify(r => r.DeleteAsync(evaluation, It.IsAny<CancellationToken>()), Times.Once);
             _repositoryMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
+
+        [Fact]
+        public async Task EvaluateAndRankCandidateVendorsAsync_WhenScoresTied_RanksCheaperVendorFirst()
+        {
+            // Arrange: Vendor 1 ($1000) and Vendor 2 ($1500) have the exact same OverallScore = 85.0
+            var procurementRequestId = Guid.NewGuid();
+            var vendor1Id = Guid.NewGuid(); // cheaper
+            var vendor2Id = Guid.NewGuid(); // more expensive
+
+            var request = new EvaluateVendorsRequestDto
+            {
+                ProcurementRequestId = procurementRequestId,
+                CandidateVendors = new List<CandidateVendorMetricDto>
+                {
+                    // Vendor 2 passed first in the list
+                    new CandidateVendorMetricDto { VendorId = vendor2Id, QuotedPrice = 1500m, ReliabilityRating = 90m },
+                    new CandidateVendorMetricDto { VendorId = vendor1Id, QuotedPrice = 1000m, ReliabilityRating = 90m }
+                }
+            };
+
+            var scoredResults = new List<CandidateEvaluationResult>
+            {
+                new CandidateEvaluationResult
+                {
+                    VendorId = vendor2Id,
+                    OverallScore = 85.0m,
+                    Reasoning = "Vendor 2",
+                    CriterionScores = new List<VendorEvaluationCriterionScore>()
+                },
+                new CandidateEvaluationResult
+                {
+                    VendorId = vendor1Id,
+                    OverallScore = 85.0m,
+                    Reasoning = "Vendor 1",
+                    CriterionScores = new List<VendorEvaluationCriterionScore>()
+                }
+            };
+
+            _procurementRequestRepositoryMock
+                .Setup(r => r.GetByIdAsync(procurementRequestId))
+                .ReturnsAsync((ProcurementRequestEntity?)null);
+
+            _scoringEngineMock
+                .Setup(e => e.EvaluateCandidates(procurementRequestId, request.CandidateVendors, null, null, null))
+                .Returns(scoredResults);
+
+            _repositoryMock
+                .Setup(r => r.DeleteByProcurementRequestIdAsync(procurementRequestId, It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            _repositoryMock
+                .Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<VendorEvaluationEntity>>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            _repositoryMock
+                .Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(2);
+
+            // Act
+            var summary = await _service.EvaluateAndRankCandidateVendorsAsync(request);
+
+            // Assert: Cheaper vendor (Vendor 1) MUST be Rank #1 and TopRecommendedVendorId despite being second in the list
+            Assert.Equal(vendor1Id, summary.TopRecommendedVendorId);
+            Assert.Equal(1, summary.RankedEvaluations[0].Rank);
+            Assert.Equal(vendor1Id, summary.RankedEvaluations[0].VendorId);
+            Assert.Equal(2, summary.RankedEvaluations[1].Rank);
+            Assert.Equal(vendor2Id, summary.RankedEvaluations[1].VendorId);
+        }
     }
 }

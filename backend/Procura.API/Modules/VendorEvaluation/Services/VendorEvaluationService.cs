@@ -127,9 +127,12 @@ public class VendorEvaluationService : IVendorEvaluationService
             deliveryDays,
             request.CustomWeights);
 
-        // 5. Rank candidates by overall score in descending order
+        // 5. Rank candidates deterministically: by overall score descending, then lower quoted price, then higher reliability
+        var metricMap = candidateMetrics.ToDictionary(c => c.VendorId);
         var sortedResults = evaluationResults
             .OrderByDescending(r => r.OverallScore)
+            .ThenBy(r => metricMap.TryGetValue(r.VendorId, out var m) ? m.QuotedPrice : decimal.MaxValue)
+            .ThenByDescending(r => metricMap.TryGetValue(r.VendorId, out var m) ? m.ReliabilityRating : 0m)
             .ToList();
 
         // 6. Clear any prior evaluations for this procurement request to ensure idempotent re-evaluations

@@ -141,5 +141,126 @@ namespace Procura.API.Tests.Modules.VendorEvaluation.Services
             var priceScore = result.CriterionScores.First(c => c.CriterionName == EvaluationCriterionType.PRICE);
             Assert.Equal(0.50m, priceScore.Weight);
         }
+
+        [Fact]
+        public void EvaluateCandidates_FiveStarReliabilityRating_NormalizesToPercentage()
+        {
+            // Arrange: candidate with 4.5 star rating on 1-5 scale (should normalize to 90/100 without LOW_RELIABILITY risk)
+            var requestId = Guid.NewGuid();
+            var vendorId = Guid.NewGuid();
+
+            var candidates = new List<CandidateVendorMetricDto>
+            {
+                new CandidateVendorMetricDto
+                {
+                    VendorId = vendorId,
+                    VendorName = "Five Star Vendor",
+                    QuotedPrice = 1000m,
+                    EstimatedDeliveryDays = 5,
+                    ReliabilityRating = 4.5m, // 4.5 out of 5 -> 90%
+                    IsComplianceApproved = true
+                }
+            };
+
+            // Act
+            var results = _engine.EvaluateCandidates(requestId, candidates, null, null, null);
+
+            // Assert
+            Assert.Single(results);
+            var result = results.First();
+            var reliabilityCrit = result.CriterionScores.First(c => c.CriterionName == EvaluationCriterionType.RELIABILITY);
+
+            Assert.Equal(90.00m, reliabilityCrit.Score);
+            Assert.DoesNotContain(result.RiskFlags, r => r.Contains("LOW_RELIABILITY_SCORE"));
+        }
+
+        [Fact]
+        public void EvaluateCandidates_SingleCandidate_EvaluatesSuccessfullyWithFullScore()
+        {
+            // Arrange
+            var requestId = Guid.NewGuid();
+            var vendorId = Guid.NewGuid();
+
+            var candidates = new List<CandidateVendorMetricDto>
+            {
+                new CandidateVendorMetricDto
+                {
+                    VendorId = vendorId,
+                    VendorName = "Solo Vendor",
+                    QuotedPrice = 2500m,
+                    EstimatedDeliveryDays = 7,
+                    ReliabilityRating = 95m,
+                    IsComplianceApproved = true
+                }
+            };
+
+            // Act
+            var results = _engine.EvaluateCandidates(requestId, candidates, estimatedBudget: 3000m, requiredDeliveryDays: 10, customWeights: null);
+
+            // Assert
+            Assert.Single(results);
+            var result = results.First();
+            Assert.True(result.OverallScore > 80m);
+            Assert.Empty(result.RiskFlags);
+        }
+
+        [Fact]
+        public void EvaluateCandidates_ZeroPriceCandidate_ReceivesZeroPriceScoreWithoutDividingByZero()
+        {
+            // Arrange: candidate with price = 0
+            var requestId = Guid.NewGuid();
+            var vendorId = Guid.NewGuid();
+
+            var candidates = new List<CandidateVendorMetricDto>
+            {
+                new CandidateVendorMetricDto
+                {
+                    VendorId = vendorId,
+                    VendorName = "Free Sample Vendor",
+                    QuotedPrice = 0m,
+                    EstimatedDeliveryDays = 3,
+                    ReliabilityRating = 80m,
+                    IsComplianceApproved = true
+                }
+            };
+
+            // Act
+            var results = _engine.EvaluateCandidates(requestId, candidates, null, null, null);
+
+            // Assert
+            Assert.Single(results);
+            var priceCrit = results.First().CriterionScores.First(c => c.CriterionName == EvaluationCriterionType.PRICE);
+            Assert.Equal(0m, priceCrit.Score);
+        }
+
+        [Fact]
+        public void EvaluateCandidates_NonCompliantCandidate_ReceivesZeroComplianceScoreAndRiskFlag()
+        {
+            // Arrange
+            var requestId = Guid.NewGuid();
+            var vendorId = Guid.NewGuid();
+
+            var candidates = new List<CandidateVendorMetricDto>
+            {
+                new CandidateVendorMetricDto
+                {
+                    VendorId = vendorId,
+                    VendorName = "Non Compliant Vendor",
+                    QuotedPrice = 1000m,
+                    EstimatedDeliveryDays = 5,
+                    ReliabilityRating = 90m,
+                    IsComplianceApproved = false
+                }
+            };
+
+            // Act
+            var results = _engine.EvaluateCandidates(requestId, candidates, null, null, null);
+
+            // Assert
+            Assert.Single(results);
+            var complianceCrit = results.First().CriterionScores.First(c => c.CriterionName == EvaluationCriterionType.COMPLIANCE);
+            Assert.Equal(0m, complianceCrit.Score);
+            Assert.Contains(results.First().RiskFlags, r => r.Contains("NON_COMPLIANT_VENDOR"));
+        }
     }
 }

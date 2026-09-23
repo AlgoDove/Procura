@@ -139,7 +139,7 @@ The Agentic AI Subsystem provides natural language procurement request parsing, 
 
 ## 🧪 Running Automated Unit Tests
 
-Run the complete test suite (39 passing unit tests covering services, orchestrator, agent execution, and security tools):
+Run the complete test suite (85 passing tests covering services, orchestrator, agent execution, security tools, and end-to-end API integration):
 ```bash
 dotnet test backend/Procura.sln
 ```

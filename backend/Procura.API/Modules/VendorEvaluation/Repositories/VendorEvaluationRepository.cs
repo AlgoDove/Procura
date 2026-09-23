@@ -46,13 +46,6 @@ public class VendorEvaluationRepository : IVendorEvaluationRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<Entities.VendorEvaluation?> GetByProcurementAndVendorAsync(Guid procurementRequestId, Guid vendorId, CancellationToken cancellationToken = default)
-    {
-        return await _context.VendorEvaluations
-            .Include(e => e.CriterionScores)
-            .FirstOrDefaultAsync(e => e.ProcurementRequestId == procurementRequestId && e.VendorId == vendorId, cancellationToken);
-    }
-
     public async Task<Entities.VendorEvaluation> AddAsync(Entities.VendorEvaluation evaluation, CancellationToken cancellationToken = default)
     {
         await _context.VendorEvaluations.AddAsync(evaluation, cancellationToken);
@@ -87,11 +80,6 @@ public class VendorEvaluationRepository : IVendorEvaluationRepository
         {
             _context.VendorEvaluations.RemoveRange(evaluations);
         }
-    }
-
-    public async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        return await _context.VendorEvaluations.AnyAsync(e => e.Id == id, cancellationToken);
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -98,7 +98,13 @@ public class VendorScoringEngine : IVendorScoringEngine
             });
 
             // 3. RELIABILITY CRITERION
-            decimal reliabilityScore = Math.Clamp(Math.Round(candidate.ReliabilityRating, 2), 0m, 100m);
+            decimal rawReliability = candidate.ReliabilityRating;
+            if (rawReliability > 0m && rawReliability <= 5.0m)
+            {
+                // Auto-normalize 1.0 - 5.0 scale to 20% - 100% percentage scale
+                rawReliability *= 20m;
+            }
+            decimal reliabilityScore = Math.Clamp(Math.Round(rawReliability, 2), 0m, 100m);
             if (reliabilityScore < 60m)
             {
                 riskFlags.Add($"LOW_RELIABILITY_SCORE: Reliability rating is {reliabilityScore}%, which is below the minimum recommended 60% threshold.");
