@@ -1,0 +1,108 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.heading {
+  font-size: 1.4rem;
+  color: #1e3a5f;
+  margin: 0;
+}
+
+.btnPrimary {
+  background: #1e3a5f;
+  color: #fff;
+  padding: 0.45rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.btnPrimary:hover { background: #16304f; }
+
+.filters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.select {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: #fff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.875rem;
+}
+
+.table th {
+  background: #f0f4f8;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #444;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.table tr:hover td { background: #f8fafc; }
+
+.badge {
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.reqLink {
+  color: #1e3a5f;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.reqLink:hover { text-decoration: underline; }
+
+.state, .emptyState {
+  padding: 2rem;
+  text-align: center;
+  color: #777;
+}
+
+.errorState {
+  padding: 1rem;
+  color: #c0392b;
+  background: #fdf2f2;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+}
