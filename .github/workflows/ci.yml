@@ -1,4 +1,4 @@
-name: CI
+name: Backend CI
 
 on:
   push:
@@ -9,8 +9,7 @@ on:
       - main
 
 jobs:
-  # ─── Backend ──────────────────────────────────────────────────────────────
-  backend:
+  build-and-test:
     name: Build and Test Backend
     runs-on: ubuntu-latest
 
@@ -31,63 +30,3 @@ jobs:
 
       - name: Run unit tests
         run: dotnet test backend/Procura.sln --no-build --configuration Release --verbosity normal
-
-  # ─── React Web Frontend ───────────────────────────────────────────────────
-  react:
-    name: Build and Test React Frontend
-    runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: frontend-web
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend-web/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-      - name: Build
-        run: npm run build
-        env:
-          # VITE_API_BASE_URL must be provided for CI build to succeed.
-          # Value does not need to be a real server — it's baked in at build time.
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'https://api.procura.example.com' }}
-
-  # ─── Flutter Mobile Frontend ──────────────────────────────────────────────
-  flutter:
-    name: Analyze and Test Flutter Frontend
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: 'stable'
-          channel: 'stable'
-
-      - name: Install dependencies
-        run: flutter pub get
-        working-directory: frontend-mobile
-
-      - name: Analyze
-        run: flutter analyze lib/
-        working-directory: frontend-mobile
-
-      - name: Run widget tests
-        run: flutter test
-        working-directory: frontend-mobile
