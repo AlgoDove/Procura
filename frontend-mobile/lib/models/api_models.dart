@@ -144,8 +144,10 @@ class ProcessAiRequest {
 
   Map<String, dynamic> toJson() => {
         'objective': objective,
-        if (existingRequestId != null) 'existingRequestId': existingRequestId,
-        if (workflowId != null) 'workflowId': workflowId,
+        if (existingRequestId != null && existingRequestId!.isNotEmpty)
+          'existingRequestId': existingRequestId,
+        if (workflowId != null && workflowId!.isNotEmpty)
+          'workflowId': workflowId,
       };
 }
 
@@ -158,20 +160,22 @@ class WorkflowStep {
   final String? outcomeSummary;
 
   WorkflowStep.fromJson(Map<String, dynamic> j)
-      : stepNumber = j['stepNumber'] as int,
-        stage = j['stage'] as String,
-        agentName = j['agentName'] as String,
-        objective = j['objective'] as String,
-        status = j['status'] as String,
+      : stepNumber = j['stepNumber'] as int? ?? 0,
+        stage = j['stage'] as String? ?? '',
+        agentName = j['agentName'] as String? ?? '',
+        objective = j['objective'] as String? ?? '',
+        status = j['status'] as String? ?? '',
         outcomeSummary = j['outcomeSummary'] as String?;
 }
 
 class WorkflowPlan {
   final List<WorkflowStep> steps;
-  WorkflowPlan.fromJson(Map<String, dynamic> j)
-      : steps = (j['steps'] as List<dynamic>)
-            .map((e) => WorkflowStep.fromJson(e as Map<String, dynamic>))
-            .toList();
+  WorkflowPlan({this.steps = const []});
+
+  WorkflowPlan.fromJson(Map<String, dynamic>? j)
+      : steps = (j?['steps'] as List<dynamic>?)
+            ?.map((e) => WorkflowStep.fromJson(e as Map<String, dynamic>))
+            .toList() ?? [];
 }
 
 class WorkflowAuditEntry {
@@ -186,13 +190,13 @@ class WorkflowAuditEntry {
   final bool isSecurityViolation;
 
   WorkflowAuditEntry.fromJson(Map<String, dynamic> j)
-      : id = j['id'] as String,
-        timestamp = j['timestamp'] as String,
-        stage = j['stage'] as String,
-        actor = j['actor'] as String,
-        action = j['action'] as String,
+      : id = j['id'] as String? ?? '',
+        timestamp = j['timestamp'] as String? ?? '',
+        stage = j['stage'] as String? ?? '',
+        actor = j['actor'] as String? ?? '',
+        action = j['action'] as String? ?? '',
         toolName = j['toolName'] as String?,
-        status = j['status'] as String,
+        status = j['status'] as String? ?? '',
         details = j['details'] as String? ?? '',
         isSecurityViolation = j['isSecurityViolation'] as bool? ?? false;
 }
@@ -212,18 +216,20 @@ class WorkflowProcessResponse {
   final String updatedAt;
 
   WorkflowProcessResponse.fromJson(Map<String, dynamic> j)
-      : workflowId = j['workflowId'] as String,
-        status = j['status'] as String,
-        currentStage = j['currentStage'] as String,
+      : workflowId = j['workflowId'] as String? ?? '',
+        status = j['status'] as String? ?? '',
+        currentStage = j['currentStage'] as String? ?? '',
         procurementRequestId = j['procurementRequestId'] as String?,
         requestNumber = j['requestNumber'] as String?,
         estimatedTotal = (j['estimatedTotal'] as num?)?.toDouble(),
         executionSummary = j['executionSummary'] as String?,
         clarificationPrompt = j['clarificationPrompt'] as String?,
-        errors = (j['errors'] as List<dynamic>).map((e) => e as String).toList(),
-        plan = WorkflowPlan.fromJson(j['plan'] as Map<String, dynamic>),
-        auditTrail = (j['auditTrail'] as List<dynamic>)
-            .map((e) => WorkflowAuditEntry.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        updatedAt = j['updatedAt'] as String;
+        errors = (j['errors'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+        plan = j['plan'] != null
+            ? WorkflowPlan.fromJson(j['plan'] as Map<String, dynamic>)
+            : WorkflowPlan(),
+        auditTrail = (j['auditTrail'] as List<dynamic>?)
+            ?.map((e) => WorkflowAuditEntry.fromJson(e as Map<String, dynamic>))
+            .toList() ?? [],
+        updatedAt = j['updatedAt'] as String? ?? '';
 }

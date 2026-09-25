@@ -20,7 +20,24 @@ export interface JwtPayload {
   sub: string;   // UserId (Guid)
   email: string;
   role: SystemRole;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
   exp: number;
+}
+
+export interface UserSummaryResponse {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: SystemRole;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface UpdateUserRoleRequest {
+  role: 'EMPLOYEE' | 'PROCUREMENT_OFFICER' | 'ADMIN';
 }
 
 // ─── Enums ─────────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProcurementRequest, updateProcurementRequest } from '../api/endpoints';
 import type { Priority, ProcurementRequestItemInput, UpdateProcurementRequestDto } from '../types/api';
 import ItemsEditor from '../components/ItemsEditor';
+import { formatStatus } from '../utils/formatters';
 import styles from './RequestFormPage.module.css';
 
 function tomorrowIso(): string {
@@ -91,7 +92,7 @@ export default function EditRequestPage() {
     return (
       <div>
         <h1 className={styles.heading}>Cannot Edit</h1>
-        <p>Only DRAFT requests can be edited. This request is <strong>{request.status}</strong>.</p>
+        <p>Only DRAFT requests can be edited. This request is <strong>{formatStatus(request.status)}</strong>.</p>
         <button onClick={() => navigate(`/requests/${id}`)} className={styles.btnSecondary}>
           ← Back
         </button>

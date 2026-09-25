@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 import '../models/api_models.dart';
 import 'widgets/items_form.dart';
@@ -41,7 +42,6 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
         _justController.text = req.justification;
         _priority = req.priority;
         _requiredByDate = DateTime.parse(req.requiredByDate).toLocal();
-        // Strip IDs — backend clears and rebuilds on PUT
         _items = req.items.map((i) => ProcurementRequestItemInput(
           itemName: i.itemName,
           description: i.description,
@@ -87,44 +87,116 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
       );
       if (!mounted) return;
       Navigator.pop(context);
-    } catch (e) {
-      final statusCode = (e as dynamic)?.response?.statusCode as int?;
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
       setState(() {
         _error = statusCode == 409
             ? 'Only DRAFT requests can be edited.'
-            : 'Failed to update request.';
+            : 'Failed to update request. Please check your connection.';
       });
+    } catch (e) {
+      setState(() { _error = 'An unexpected error occurred.'; });
     } finally {
       if (mounted) setState(() { _saving = false; });
     }
   }
 
+  Widget _buildField({
+    required String label,
+    required TextEditingController controller,
+    int maxLines = 1,
+    int? maxLength,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          maxLength: maxLength,
+          style: const TextStyle(color: Colors.black87),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.grey[50],
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.black26)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.black26)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1E3A5F), width: 2)),
+          ),
+          validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) return const Scaffold(backgroundColor: Colors.white, body: Center(child: CircularProgressIndicator()));
     if (_request?.status != 'DRAFT') {
       return Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(title: const Text('Edit Request')),
-        body: Center(child: Text('Only DRAFT requests can be edited.\nThis request is ${_request?.status}.')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text('This request is ${_request?.status}.', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('Only DRAFT requests can be edited.', style: TextStyle(color: Colors.black54)),
+            ],
+          ),
+        ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text('Edit ${_request?.requestNumber ?? "Request"}')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text('Edit ${_request?.requestNumber ?? "Request"}'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 1,
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(24),
           children: [
-            TextFormField(controller: _titleController, decoration: const InputDecoration(labelText: 'Title *', border: OutlineInputBorder()), maxLength: 150, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
-            const SizedBox(height: 12),
-            TextFormField(controller: _descController, decoration: const InputDecoration(labelText: 'Description *', border: OutlineInputBorder()), maxLines: 3, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
-            const SizedBox(height: 12),
-            TextFormField(controller: _justController, decoration: const InputDecoration(labelText: 'Justification *', border: OutlineInputBorder()), maxLines: 3, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
-            const SizedBox(height: 12),
+            _buildField(
+              label: 'Title *',
+              controller: _titleController,
+              maxLength: 150,
+            ),
+            const SizedBox(height: 16),
+            _buildField(
+              label: 'Description *',
+              controller: _descController,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+            _buildField(
+              label: 'Justification *',
+              controller: _justController,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+            
+            const Text('Priority', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+            const SizedBox(height: 6),
             DropdownButtonFormField<String>(
               initialValue: _priority,
-              decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.grey[50],
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.black26)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.black26)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1E3A5F), width: 2)),
+              ),
               items: const [
                 DropdownMenuItem(value: 'LOW', child: Text('Low')),
                 DropdownMenuItem(value: 'MEDIUM', child: Text('Medium')),
@@ -133,25 +205,61 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
               ],
               onChanged: (v) => setState(() => _priority = v!),
             ),
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Required by date *'),
-              subtitle: Text(_requiredByDate == null ? 'Tap to select' : _requiredByDate!.toLocal().toString().split(' ')[0]),
-              trailing: const Icon(Icons.calendar_today),
+            const SizedBox(height: 24),
+            
+            const Text('Required by date *', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+            const SizedBox(height: 6),
+            InkWell(
               onTap: _pickDate,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _requiredByDate == null ? Colors.black26 : const Color(0xFF1E3A5F)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _requiredByDate == null ? 'Tap to select a date' : _requiredByDate!.toLocal().toString().split(' ')[0],
+                        style: TextStyle(color: _requiredByDate == null ? Colors.black45 : Colors.black87, fontSize: 16),
+                      ),
+                    ),
+                    const Icon(Icons.calendar_today, color: Color(0xFF1E3A5F), size: 20),
+                  ],
+                ),
+              ),
             ),
-            const Divider(),
-            ItemsForm(items: _items, onChanged: (v) => setState(() => _items = v)),
+            const SizedBox(height: 32),
+            
+            ItemsForm(
+              items: _items,
+              onChanged: (v) => setState(() => _items = v),
+            ),
+            
             if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.red.shade200)),
+                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              ),
             ],
-            const SizedBox(height: 16),
+            
+            const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _saving ? null : _save,
-              child: _saving ? const CircularProgressIndicator(color: Colors.white) : const Text('Save Changes'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: _saving 
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
+                  : const Text('Save Changes', style: TextStyle(fontSize: 16)),
             ),
+            const SizedBox(height: 32),
           ],
         ),
       ),

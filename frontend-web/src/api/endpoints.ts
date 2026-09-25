@@ -11,6 +11,8 @@ import type {
   VendorResponse,
   CreateVendorDto,
   UpdateVendorDto,
+  UserSummaryResponse,
+  UpdateUserRoleRequest,
 } from '../types/api';
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
@@ -73,3 +75,12 @@ export const deactivateVendor = (id: string) =>
 
 export const activateVendor = (id: string) =>
   apiClient.post<VendorResponse>(`/api/vendors/${id}/activate`).then((r) => r.data);
+
+// ─── Users (Admin only) ──────────────────────────────────────────────────
+
+export const getUsers = () =>
+  apiClient.get<UserSummaryResponse[]>('/api/users').then((r) => r.data);
+
+export const updateUserRole = (id: string, role: UpdateUserRoleRequest['role']) =>
+  apiClient.patch<UserSummaryResponse>(`/api/users/${id}/role`, { role }).then((r) => r.data);
+

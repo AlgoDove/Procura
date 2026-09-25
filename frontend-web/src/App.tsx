@@ -10,6 +10,7 @@ import RequestDetailPage from './pages/RequestDetailPage';
 import CreateRequestPage from './pages/CreateRequestPage';
 import EditRequestPage from './pages/EditRequestPage';
 import AiWorkflowPage from './pages/AiWorkflowPage';
+import AdminUsersPage from './pages/AdminUsersPage';
 import VendorsListPage from './pages/VendorsListPage';
 import VendorDetailPage from './pages/VendorDetailPage';
 import CreateVendorPage from './pages/CreateVendorPage';
@@ -37,6 +38,9 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
+      {/* Root path: unauthenticated -> /login, authenticated -> /requests */}
+      <Route path="/" element={<RootRedirect />} />
+
       {/* Protected routes — any authenticated user */}
       <Route element={<ProtectedRoute />}>
         <Route
@@ -44,27 +48,43 @@ function AppRoutes() {
           element={
             <AppShell>
               <Routes>
-                <Route path="/" element={<RootRedirect />} />
                 <Route path="/requests" element={<RequestsListPage />} />
-                <Route path="/requests/new" element={<CreateRequestPage />} />
+                <Route
+                  element={<ProtectedRoute allowedRoles={['EMPLOYEE', 'ADMIN']} />}
+                >
+                  <Route path="/requests/new" element={<CreateRequestPage />} />
+                  <Route path="/requests/:id/edit" element={<EditRequestPage />} />
+                  <Route path="/requests/:id/ai" element={<AiWorkflowPage />} />
+                </Route>
                 <Route path="/requests/:id" element={<RequestDetailPage />} />
-                <Route path="/requests/:id/edit" element={<EditRequestPage />} />
-                <Route path="/requests/:id/ai" element={<AiWorkflowPage />} />
 
-                {/* Vendor routes — accessible to all authenticated (read), managed by PO/ADMIN */}
-                <Route path="/vendors" element={<VendorsListPage />} />
-                <Route path="/vendors/:id" element={<VendorDetailPage />} />
+                {/* Vendor routes — accessible only to PO and ADMIN */}
                 <Route
                   element={<ProtectedRoute allowedRoles={['PROCUREMENT_OFFICER', 'ADMIN']} />}
                 >
+                  <Route path="/vendors" element={<VendorsListPage />} />
                   <Route path="/vendors/new" element={<CreateVendorPage />} />
+                  <Route path="/vendors/:id" element={<VendorDetailPage />} />
                   <Route path="/vendors/:id/edit" element={<EditVendorPage />} />
                 </Route>
+
+                {/* Admin routes — accessible only to ADMIN */}
+                <Route
+                  element={<ProtectedRoute allowedRoles={['ADMIN']} />}
+                >
+                  <Route path="/admin" element={<AdminUsersPage />} />
+                </Route>
+
+                {/* Inside AppShell fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AppShell>
           }
         />
       </Route>
+
+      {/* Fallback for unmatched routes */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

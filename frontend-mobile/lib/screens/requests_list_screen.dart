@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_client.dart';
 import '../models/api_models.dart';
+import '../utils/formatters.dart';
 import 'request_detail_screen.dart';
 import 'create_request_screen.dart';
 
@@ -44,11 +45,12 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
       final data = response.data!
           .map((e) => ProcurementRequestResponse.fromJson(e as Map<String, dynamic>))
           .toList();
+      if (!mounted) return;
       setState(() { _requests = data; });
     } catch (_) {
-      setState(() { _error = 'Failed to load requests.'; });
+      if (mounted) setState(() { _error = 'Failed to load requests.'; });
     } finally {
-      setState(() { _loading = false; });
+      if (mounted) setState(() { _loading = false; });
     }
   }
 
@@ -65,9 +67,7 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final canCreate = auth.user?.role == 'EMPLOYEE' ||
-        auth.user?.role == 'PROCUREMENT_OFFICER' ||
-        auth.user?.role == 'ADMIN';
+    final canCreate = auth.user?.role == 'EMPLOYEE';
 
     return Scaffold(
       appBar: AppBar(
@@ -84,7 +84,7 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
             onSelected: (v) => setState(() => _statusFilter = v),
             itemBuilder: (_) => [
               const PopupMenuItem(value: '', child: Text('All statuses')),
-              ..._statusColors.keys.map((s) => PopupMenuItem(value: s, child: Text(s))),
+              ..._statusColors.keys.map((s) => PopupMenuItem(value: s, child: Text(formatStatus(s)))),
             ],
           ),
           IconButton(
@@ -95,71 +95,46 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8),
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(16),
             child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search by title or number…',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: InputDecoration(
+                hintText: 'Search by title or number...',
+                prefixIcon: const Icon(Icons.search, color: Colors.black45),
+                filled: true,
+                fillColor: Colors.grey[100],
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
               ),
               onChanged: (v) => setState(() => _search = v),
             ),
           ),
           if (_statusFilter.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
                   Chip(
-                    label: Text('Status: $_statusFilter'),
+                    label: Text('Status: ${formatStatus(_statusFilter)}'),
                     onDeleted: () => setState(() => _statusFilter = ''),
+                    backgroundColor: Colors.blue[50],
                   ),
                 ],
               ),
             ),
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
-                    : _filtered.isEmpty
-                        ? const Center(child: Text('No requests found.'))
-                        : RefreshIndicator(
-                            onRefresh: _loadRequests,
-                            child: ListView.builder(
-                              itemCount: _filtered.length,
-                              itemBuilder: (_, i) {
-                                final r = _filtered[i];
-                                return ListTile(
-                                  title: Text(r.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                  subtitle: Text('${r.requestNumber} · ${r.priority}'),
-                                  trailing: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: _statusColors[r.status] ?? Colors.grey,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      r.status,
-                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  onTap: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: r.id)),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+            child: _buildBody(),
           ),
         ],
       ),
       floatingActionButton: canCreate
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               onPressed: () async {
                 await Navigator.push(
                   context,
@@ -167,10 +142,109 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
                 );
                 _loadRequests();
               },
-              tooltip: 'New Request',
-              child: const Icon(Icons.add),
+              icon: const Icon(Icons.add),
+              label: const Text('New Request'),
             )
           : null,
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 16)),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: _loadRequests, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+    
+    if (_filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text('No requests found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const SizedBox(height: 8),
+            const Text('Create your first request to get started.', style: TextStyle(color: Colors.black54)),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadRequests,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: _filtered.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
+        itemBuilder: (_, i) {
+          final r = _filtered[i];
+          final color = _statusColors[r.status] ?? Colors.grey;
+          
+          return Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.grey.shade200),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: r.id)),
+                );
+                _loadRequests();
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            r.title, 
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            formatStatus(r.status),
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('${r.requestNumber} • Priority: ${formatStatus(r.priority)} • Total: ${formatTotal(r.estimatedTotal)}', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

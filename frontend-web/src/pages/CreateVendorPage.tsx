@@ -50,7 +50,7 @@ export default function CreateVendorPage() {
           <div className={styles.row}>
             <div className={styles.field}>
               <label htmlFor="name">Vendor name *</label>
-              <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+              <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Acme Supplies Ltd" required />
             </div>
             <div className={styles.field}>
               <label htmlFor="category">Category *</label>
@@ -60,20 +60,20 @@ export default function CreateVendorPage() {
           <div className={styles.row}>
             <div className={styles.field}>
               <label htmlFor="contactEmail">Contact email *</label>
-              <input id="contactEmail" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} required />
+              <input id="contactEmail" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="e.g. contact@acme.com" required />
             </div>
             <div className={styles.field}>
               <label htmlFor="contactPhone">Contact phone</label>
-              <input id="contactPhone" type="text" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+              <input id="contactPhone" type="text" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="e.g. +1 555-0199" />
             </div>
           </div>
           <div className={styles.field}>
             <label htmlFor="address">Address</label>
-            <input id="address" type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
+            <input id="address" type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 123 Business Way, Suite 100" />
           </div>
           <div className={styles.field}>
             <label htmlFor="notes">Notes</label>
-            <textarea id="notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <textarea id="notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional vendor notes or remarks" />
           </div>
         </div>
 

@@ -1,4 +1,5 @@
 import type { ProcurementRequestItemInput } from '../types/api';
+import { formatTotal } from '../utils/formatters';
 import styles from './ItemsEditor.module.css';
 
 interface Props {
@@ -62,19 +63,21 @@ export default function ItemsEditor({ items, onChange, disabled }: Props) {
                 type="text"
                 value={item.itemName}
                 onChange={(e) => update(i, { itemName: e.target.value })}
+                placeholder="e.g. Dell Latitude 5420"
                 maxLength={150}
                 required
                 disabled={disabled}
               />
             </div>
             <div className={styles.field}>
-              <label>Unit</label>
+              <label>Unit *</label>
               <input
                 type="text"
                 value={item.unit}
                 onChange={(e) => update(i, { unit: e.target.value })}
                 maxLength={30}
                 placeholder="e.g. pcs, kg, box"
+                required
                 disabled={disabled}
               />
             </div>
@@ -82,8 +85,9 @@ export default function ItemsEditor({ items, onChange, disabled }: Props) {
               <label>Quantity *</label>
               <input
                 type="number"
-                value={item.quantity}
+                value={item.quantity || ''}
                 min={1}
+                placeholder="1"
                 onChange={(e) => update(i, { quantity: parseInt(e.target.value) || 1 })}
                 required
                 disabled={disabled}
@@ -93,20 +97,23 @@ export default function ItemsEditor({ items, onChange, disabled }: Props) {
               <label>Est. unit price ($) *</label>
               <input
                 type="number"
-                value={item.estimatedUnitPrice}
+                value={item.estimatedUnitPrice === 0 ? '' : item.estimatedUnitPrice}
                 min={0}
                 step="0.01"
+                placeholder="0.00"
                 onChange={(e) => update(i, { estimatedUnitPrice: parseFloat(e.target.value) || 0 })}
                 required
                 disabled={disabled}
               />
             </div>
             <div className={`${styles.field} ${styles.fullWidth}`}>
-              <label>Description</label>
+              <label>Description *</label>
               <input
                 type="text"
                 value={item.description}
                 onChange={(e) => update(i, { description: e.target.value })}
+                placeholder="e.g. 16GB RAM, 512GB SSD, Intel Core i7"
+                required
                 disabled={disabled}
               />
             </div>
@@ -116,10 +123,10 @@ export default function ItemsEditor({ items, onChange, disabled }: Props) {
 
       {items.length > 0 && (
         <div className={styles.total}>
-          Estimated total: $
-          {items
-            .reduce((sum, it) => sum + (it.quantity || 0) * (it.estimatedUnitPrice || 0), 0)
-            .toFixed(2)}
+          Estimated Total:{' '}
+          {formatTotal(
+            items.reduce((sum, it) => sum + (it.quantity || 0) * (it.estimatedUnitPrice || 0), 0)
+          )}
         </div>
       )}
     </div>

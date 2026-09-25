@@ -1,12 +1,13 @@
-import { useState, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { processAiWorkflow, getAiWorkflow } from '../api/endpoints';
 import type { WorkflowProcessResponse, WorkflowStatus, StepStatus } from '../types/api';
+import { formatStatus, formatTotal } from '../utils/formatters';
 import styles from './AiWorkflowPage.module.css';
 
 const TERMINAL_STATUSES: WorkflowStatus[] = [
-  'COMPLETED', 'FAILED', 'APPROVED', 'REJECTED', 'WAITING_FOR_HUMAN_APPROVAL',
+  'COMPLETED', 'STAGE_COMPLETED', 'FAILED', 'APPROVED', 'REJECTED', 'WAITING_FOR_HUMAN_APPROVAL',
 ];
 
 const STEP_STATUS_ICON: Record<StepStatus, string> = {
@@ -19,24 +20,22 @@ const STEP_STATUS_ICON: Record<StepStatus, string> = {
 };
 
 const STEP_STATUS_COLOR: Record<StepStatus, string> = {
-  NOT_STARTED: '#bbb',
-  PENDING: '#e67e22',
-  IN_PROGRESS: '#2980b9',
-  COMPLETED: '#27ae60',
-  FAILED: '#c0392b',
-  SKIPPED: '#bbb',
+  NOT_STARTED: '#94a3b8',
+  PENDING: '#d97706',
+  IN_PROGRESS: '#0284c7',
+  COMPLETED: '#16a34a',
+  FAILED: '#dc2626',
+  SKIPPED: '#94a3b8',
 };
 
 export default function AiWorkflowPage() {
   const { id: requestId } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [objective, setObjective] = useState('');
   const [clarificationAnswer, setClarificationAnswer] = useState('');
   const [workflow, setWorkflow] = useState<WorkflowProcessResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Polling interval ref so we can clear it
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = () => {
@@ -46,18 +45,20 @@ export default function AiWorkflowPage() {
     }
   };
 
+  useEffect(() => {
+    return () => stopPolling();
+  }, []);
+
   const handleWorkflowUpdate = (data: WorkflowProcessResponse) => {
     setWorkflow(data);
     queryClient.invalidateQueries({ queryKey: ['procurement-request', requestId] });
     queryClient.invalidateQueries({ queryKey: ['procurement-requests'] });
 
-    // Stop polling on terminal state or when user input is needed
     if (TERMINAL_STATUSES.includes(data.status) || data.status === 'NEEDS_USER_INPUT') {
       stopPolling();
     }
   };
 
-  // Poll for workflow status when we have a workflowId and it's in-progress
   const startPolling = (workflowId: string) => {
     stopPolling();
     pollRef.current = setInterval(async () => {
@@ -68,6 +69,18 @@ export default function AiWorkflowPage() {
         stopPolling();
       }
     }, 3000);
+  };
+
+  const sanitizeErrorString = (errStr: string) => {
+    if (
+      errStr.includes('503') ||
+      errStr.includes('Gemini') ||
+      errStr.includes('AGENT_FAILED') ||
+      errStr.includes('temporarily')
+    ) {
+      return 'The AI service is temporarily unavailable. Please try again in a few moments.';
+    }
+    return errStr;
   };
 
   const { mutate: startWorkflow, isPending: isStarting } = useMutation({
@@ -85,7 +98,8 @@ export default function AiWorkflowPage() {
     },
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message ?? 'Failed to start AI workflow.');
+      const raw = axiosErr.response?.data?.message ?? 'Failed to start AI workflow.';
+      setError(sanitizeErrorString(raw));
     },
   });
 
@@ -106,7 +120,8 @@ export default function AiWorkflowPage() {
     },
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message ?? 'Failed to continue workflow.');
+      const raw = axiosErr.response?.data?.message ?? 'Failed to continue workflow.';
+      setError(sanitizeErrorString(raw));
     },
   });
 
@@ -115,10 +130,20 @@ export default function AiWorkflowPage() {
     !TERMINAL_STATUSES.includes(workflow.status) &&
     workflow.status !== 'NEEDS_USER_INPUT';
 
+  const rawErrors = workflow?.errors ? Array.from(new Set(workflow.errors)) : [];
+  const isAiServiceError = rawErrors.some(
+    (e) => e.includes('503') || e.includes('Gemini') || e.includes('AGENT_FAILED') || e.includes('temporarily')
+  );
+  const displayErrors = isAiServiceError
+    ? ['The AI service is temporarily unavailable. Please try again in a few moments.']
+    : rawErrors;
+
   return (
     <div className={styles.container}>
       <div className={styles.headerRow}>
-        <Link to={`/requests/${requestId}`} className={styles.back}>← Back to Request</Link>
+        <Link to={`/requests/${requestId}`} className={styles.back}>
+          ← Back to Request
+        </Link>
         <h1 className={styles.heading}>🤖 AI Procurement Assistant</h1>
       </div>
 
@@ -126,23 +151,24 @@ export default function AiWorkflowPage() {
       {!workflow && (
         <div className={styles.card}>
           <p className={styles.intro}>
-            Describe what you need to procure. The AI will extract the details, validate them,
-            and create a draft procurement request on your behalf.
+            Describe what you need to procure or update on this request. The Procurement Request Agent
+            will extract the details, validate line items, and update your draft procurement request.
           </p>
           <div className={styles.field}>
-            <label htmlFor="objective">What do you need to procure?</label>
+            <label htmlFor="objective">What do you need to procure or update?</label>
             <textarea
               id="objective"
               rows={4}
               value={objective}
               onChange={(e) => setObjective(e.target.value)}
-              placeholder="e.g. 10 laptop computers, Core i7, 16GB RAM, for the finance team. Needed by end of month."
+              placeholder="e.g. Add 5 wireless mice and 2 external monitors to this request, needed by next month."
               disabled={isStarting}
             />
           </div>
           {error && <p className={styles.error}>{error}</p>}
           <div className={styles.actions}>
             <button
+              type="button"
               className={styles.btnPrimary}
               onClick={() => startWorkflow()}
               disabled={isStarting || !objective.trim()}
@@ -158,23 +184,23 @@ export default function AiWorkflowPage() {
         <>
           {/* Status banner */}
           <div className={`${styles.statusBanner} ${styles[`status_${workflow.status}`] ?? ''}`}>
-            <strong>Status:</strong> {workflow.status}
+            <strong>Status:</strong> {formatStatus(workflow.status)}
             {isInProgress && <span className={styles.spinner}> ⟳ Processing…</span>}
           </div>
 
-          {/* Created request info */}
+          {/* Created / updated request info */}
           {workflow.procurementRequestId && (
             <div className={styles.card}>
-              <strong>Draft request created:</strong>{' '}
+              <strong>Draft request:</strong>{' '}
               <Link to={`/requests/${workflow.procurementRequestId}`} className={styles.reqLink}>
                 {workflow.requestNumber ?? workflow.procurementRequestId}
               </Link>
               {workflow.estimatedTotal != null && (
-                <span> — Estimated total: ${workflow.estimatedTotal.toFixed(2)}</span>
+                <span> — Estimated Total: {formatTotal(workflow.estimatedTotal)}</span>
               )}
               <p className={styles.note}>
-                ⚠ The AI has created a <strong>DRAFT</strong> request. You must review it and{' '}
-                <strong>explicitly submit it</strong> when you are satisfied.
+                ⚠ The AI has updated this <strong>DRAFT</strong> request. You must review the details
+                and <strong>explicitly submit it</strong> when satisfied.
               </p>
             </div>
           )}
@@ -182,10 +208,10 @@ export default function AiWorkflowPage() {
           {/* Clarification prompt */}
           {workflow.status === 'NEEDS_USER_INPUT' && workflow.clarificationPrompt && (
             <div className={styles.card}>
-              <h2 className={styles.cardTitle}>AI needs clarification</h2>
+              <h2 className={styles.cardTitle}>AI Needs Clarification</h2>
               <p className={styles.clarificationPrompt}>{workflow.clarificationPrompt}</p>
               <div className={styles.field}>
-                <label htmlFor="clarification">Your answer</label>
+                <label htmlFor="clarification">Your Answer</label>
                 <textarea
                   id="clarification"
                   rows={3}
@@ -198,6 +224,7 @@ export default function AiWorkflowPage() {
               {error && <p className={styles.error}>{error}</p>}
               <div className={styles.actions}>
                 <button
+                  type="button"
                   className={styles.btnPrimary}
                   onClick={() => continueWorkflow()}
                   disabled={isContinuing || !clarificationAnswer.trim()}
@@ -216,13 +243,28 @@ export default function AiWorkflowPage() {
             </div>
           )}
 
-          {/* Errors */}
-          {workflow.errors && workflow.errors.length > 0 && (
+          {/* Sanitized Errors */}
+          {displayErrors.length > 0 && (
             <div className={`${styles.card} ${styles.errorCard}`}>
-              <h2 className={styles.cardTitle}>Errors</h2>
+              <h2 className={styles.cardTitle}>Status Notice</h2>
               <ul>
-                {workflow.errors.map((e, i) => <li key={i}>{e}</li>)}
+                {displayErrors.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
               </ul>
+              {isAiServiceError && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <button
+                    type="button"
+                    className={styles.btnPrimary}
+                    onClick={() => startWorkflow()}
+                    disabled={isStarting}
+                    style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}
+                  >
+                    Retry Workflow
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -241,17 +283,17 @@ export default function AiWorkflowPage() {
                     </span>
                     <div className={styles.stepBody}>
                       <div className={styles.stepHeader}>
-                        <span className={styles.stepName}>{step.agentName}</span>
+                        <span className={styles.stepAgent}>{step.agentName}</span>
                         <span
                           className={styles.stepStatus}
                           style={{ color: STEP_STATUS_COLOR[step.status] }}
                         >
-                          {step.status}
+                          {formatStatus(step.status)}
                         </span>
                       </div>
                       <p className={styles.stepObjective}>{step.objective}</p>
                       {step.outcomeSummary && (
-                        <p className={styles.stepOutcome}>{step.outcomeSummary}</p>
+                        <p className={styles.stepOutcome}>✓ {step.outcomeSummary}</p>
                       )}
                     </div>
                   </div>
@@ -260,49 +302,22 @@ export default function AiWorkflowPage() {
             </div>
           )}
 
-          {/* Audit Trail */}
+          {/* Audit trail */}
           {workflow.auditTrail?.length > 0 && (
             <div className={styles.card}>
               <h2 className={styles.cardTitle}>Audit Trail</h2>
-              <div className={styles.audit}>
+              <div className={styles.auditList}>
                 {workflow.auditTrail.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className={`${styles.auditEntry} ${entry.isSecurityViolation ? styles.secViolation : ''}`}
-                  >
+                  <div key={entry.id} className={styles.auditRow}>
                     <span className={styles.auditTime}>
-                      {new Date(entry.timestamp).toLocaleTimeString()}
+                      {entry.timestamp ? entry.timestamp.split('T')[1]?.split('.')[0] : ''}
                     </span>
-                    <span className={styles.auditStage}>[{entry.stage}]</span>
                     <span className={styles.auditActor}>{entry.actor}</span>
                     <span className={styles.auditAction}>{entry.action}</span>
-                    {entry.toolName && (
-                      <span className={styles.auditTool}>({entry.toolName})</span>
-                    )}
-                    <span
-                      className={styles.auditStatus}
-                      style={{ color: entry.status === 'COMPLETED' ? '#27ae60' : '#c0392b' }}
-                    >
-                      {entry.status}
-                    </span>
-                    {entry.isSecurityViolation && (
-                      <span className={styles.secLabel}>⚠ SECURITY</span>
-                    )}
+                    <span className={styles.auditDetails}>{entry.details}</span>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Navigate to request when completed */}
-          {workflow.procurementRequestId && workflow.status !== 'IN_PROGRESS' && (
-            <div className={styles.actions}>
-              <button
-                className={styles.btnSecondary}
-                onClick={() => navigate(`/requests/${workflow.procurementRequestId}`)}
-              >
-                Review Request →
-              </button>
             </div>
           )}
         </>

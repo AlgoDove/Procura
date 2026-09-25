@@ -5,6 +5,7 @@ import type { JwtPayload, SystemRole } from '../types/api';
 interface AuthUser {
   userId: string;
   email: string;
+  displayName: string;
   role: SystemRole;
 }
 
@@ -23,9 +24,16 @@ function decodeToken(token: string): AuthUser | null {
     const payload = jwtDecode<JwtPayload>(token);
     // Reject expired tokens immediately
     if (payload.exp * 1000 < Date.now()) return null;
+
+    const raw = jwtDecode<Record<string, unknown>>(token);
+    const firstName = (raw.firstName ?? raw['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname'] ?? payload.firstName) as string | undefined;
+    const name = (raw.name ?? raw['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ?? payload.name) as string | undefined;
+    const displayName = firstName?.trim() || name?.trim() || (payload.email ? payload.email.split('@')[0] : 'User');
+
     return {
       userId: payload.sub,
       email: payload.email,
+      displayName,
       // The backend sets both "role" and ClaimTypes.Role.
       // jwt-decode maps the raw claim key from the JWT, which is "role".
       role: payload.role as SystemRole,

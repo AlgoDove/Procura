@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../services/api_client.dart';
 import '../models/api_models.dart';
 import '../services/auth_service.dart';
+import '../utils/formatters.dart';
 import 'edit_request_screen.dart';
 import 'ai_workflow_screen.dart';
 
@@ -142,7 +143,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 color: _statusColors[r.status] ?? Colors.grey,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Text(r.status, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+              child: Text(formatStatus(r.status), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -183,7 +184,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               onPressed: () => _updateStatus(t['status']!),
               child: Text(t['label']!),
             )),
-            if ((isEmployee && isOwner && isDraft) || role == 'ADMIN')
+            if (isEmployee && isOwner && isDraft)
               TextButton(
                 onPressed: () {
                   if (_confirmDelete) {
@@ -202,9 +203,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
         const Divider(),
         _detail('Request Number', r.requestNumber),
-        _detail('Priority', r.priority),
+        _detail('Priority', formatStatus(r.priority)),
         _detail('Required By', DateTime.parse(r.requiredByDate).toLocal().toString().split(' ')[0]),
-        _detail('Estimated Total', '\$${r.estimatedTotal.toStringAsFixed(2)}'),
+        _detail('Estimated Total', formatTotal(r.estimatedTotal)),
         _detail('Created', r.createdAt.split('T')[0]),
         _detail('Updated', r.updatedAt.split('T')[0]),
         const SizedBox(height: 8),
@@ -225,7 +226,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 Text(item.itemName, style: const TextStyle(fontWeight: FontWeight.w600)),
                 if (item.description.isNotEmpty) Text(item.description, style: const TextStyle(color: Colors.black54, fontSize: 13)),
                 const SizedBox(height: 4),
-                Text('Qty: ${item.quantity} ${item.unit}  ·  Unit price: \$${item.estimatedUnitPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13)),
+                Text('Qty: ${item.quantity} ${item.unit}  ·  Unit price: ${formatPrice(item.estimatedUnitPrice)}', style: const TextStyle(fontSize: 13)),
               ],
             ),
           ),

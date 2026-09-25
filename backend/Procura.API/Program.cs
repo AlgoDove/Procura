@@ -13,6 +13,7 @@ using Procura.API.Modules.ProcurementRequest.Repositories;
 using Procura.API.Modules.ProcurementRequest.Services;
 using Procura.API.Shared.Authentication;
 using Procura.API.Shared.Data;
+using Procura.API.Shared.Enums;
 using Procura.API.Shared.Middleware;
 using Procura.API.AI.Core;
 using Procura.API.AI.Gemini;
@@ -193,6 +194,41 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+// Seed initial administrator only if explicitly configured via configuration/user-secrets
+using (var scope = app.Services.CreateScope())
+{
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var adminEmail = config["SeedAdmin:Email"];
+    var adminPassword = config["SeedAdmin:Password"];
+
+    if (!string.IsNullOrWhiteSpace(adminEmail) && !string.IsNullOrWhiteSpace(adminPassword))
+    {
+        try
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            if (!db.Users.Any(u => u.Role == SystemRole.ADMIN))
+            {
+                var adminUser = new Procura.API.Shared.Entities.User
+                {
+                    FirstName = config["SeedAdmin:FirstName"] ?? "System",
+                    LastName = config["SeedAdmin:LastName"] ?? "Admin",
+                    Email = adminEmail.Trim(),
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+                    Role = SystemRole.ADMIN,
+                    IsActive = true
+                };
+                db.Users.Add(adminUser);
+                db.SaveChanges();
+            }
+        }
+        catch (Exception ex)
+        {
+            var logger = scope.ServiceProvider.GetService<ILogger<Program>>();
+            logger?.LogWarning("Initial admin seeding could not be completed: {Message}", ex.Message);
+        }
+    }
+}
 
 app.Run();
 

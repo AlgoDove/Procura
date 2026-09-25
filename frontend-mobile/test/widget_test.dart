@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:procura_mobile/providers/auth_provider.dart';
 import 'package:procura_mobile/screens/login_screen.dart';
+import 'package:procura_mobile/screens/create_request_screen.dart';
 
 void main() {
   group('LoginScreen', () {
@@ -20,8 +21,8 @@ void main() {
       await tester.pump(); // Wait for async init
 
       expect(find.byType(TextFormField), findsAtLeastNWidgets(2));
-      expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
-      expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
+      expect(find.text('Email'), findsWidgets);
+      expect(find.text('Password'), findsWidgets);
     });
 
     testWidgets('shows sign in button', (tester) async {
@@ -46,6 +47,40 @@ void main() {
       await tester.pump();
 
       expect(find.text('Required'), findsAtLeastNWidgets(1));
+    });
+  });
+
+  group('CreateRequestScreen', () {
+    Widget buildCreateRequestScreen() {
+      return const MaterialApp(
+        home: CreateRequestScreen(),
+      );
+    }
+
+    testWidgets('displays both AI Assistant and Manual Request choices', (tester) async {
+      await tester.pumpWidget(buildCreateRequestScreen());
+      await tester.pump();
+
+      expect(find.text('AI Assistant'), findsOneWidget);
+      expect(find.text('Manual Request'), findsOneWidget);
+      // Defaults to AI view
+      expect(find.text('Create Draft with AI'), findsOneWidget);
+    });
+
+    testWidgets('switching to Manual Request shows manual form fields', (tester) async {
+      await tester.pumpWidget(buildCreateRequestScreen());
+      await tester.pump();
+
+      // Tap Manual Request segment
+      await tester.tap(find.text('Manual Request'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Title *'), findsOneWidget);
+      expect(find.text('Description *'), findsOneWidget);
+      expect(find.text('Justification *'), findsOneWidget);
+
+      await tester.scrollUntilVisible(find.text('Save Draft'), 200, scrollable: find.byType(Scrollable).first);
+      expect(find.text('Save Draft'), findsOneWidget);
     });
   });
 }

@@ -2,9 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../models/api_models.dart';
+import '../utils/formatters.dart';
 
 const _terminalStatuses = {
-  'COMPLETED', 'FAILED', 'APPROVED', 'REJECTED', 'WAITING_FOR_HUMAN_APPROVAL',
+  'COMPLETED', 'STAGE_COMPLETED', 'FAILED', 'APPROVED', 'REJECTED', 'WAITING_FOR_HUMAN_APPROVAL',
 };
 
 class AiWorkflowScreen extends StatefulWidget {
@@ -73,7 +74,7 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
         _startPolling(data.workflowId);
       }
     } catch (_) {
-      setState(() => _error = 'Failed to start AI workflow.');
+      setState(() => _error = 'Failed to start AI workflow. Please check your connection.');
     } finally {
       if (mounted) setState(() => _starting = false);
     }
@@ -83,7 +84,6 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
     if (_clarificationController.text.trim().isEmpty) return;
     setState(() { _continuing = true; _error = null; });
     try {
-      // NEEDS_USER_INPUT continuation: same endpoint, same workflowId, new objective = clarification answer
       final r = await ApiClient.dio.post<Map<String, dynamic>>(
         '/api/procurement-requests/ai/process',
         data: ProcessAiRequest(
@@ -101,7 +101,7 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
         _startPolling(data.workflowId);
       }
     } catch (_) {
-      setState(() => _error = 'Failed to continue workflow.');
+      setState(() => _error = 'Failed to send answer. Please try again.');
     } finally {
       if (mounted) setState(() => _continuing = false);
     }
@@ -132,14 +132,12 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _starting ? null : _startWorkflow,
-              child: _starting ? const CircularProgressIndicator(color: Colors.white) : const Text('Start AI Workflow'),
+              child: _starting ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Start AI Workflow'),
             ),
           ] else ...[
-            // Status
             _statusBanner(),
             const SizedBox(height: 12),
 
-            // Created request info
             if (_workflow!.procurementRequestId != null) ...[
               Card(
                 child: Padding(
@@ -163,7 +161,6 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
               const SizedBox(height: 8),
             ],
 
-            // Clarification prompt
             if (_workflow!.status == 'NEEDS_USER_INPUT' && _workflow!.clarificationPrompt != null) ...[
               Card(
                 color: const Color(0xFFFEF9E7),
@@ -188,7 +185,7 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
                       const SizedBox(height: 8),
                       ElevatedButton(
                         onPressed: _continuing ? null : _continueWorkflow,
-                        child: _continuing ? const CircularProgressIndicator(color: Colors.white) : const Text('Send Answer'),
+                        child: _continuing ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Send Answer'),
                       ),
                     ],
                   ),
@@ -197,7 +194,6 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
               const SizedBox(height: 8),
             ],
 
-            // Summary
             if (_workflow!.executionSummary != null) ...[
               Card(
                 child: Padding(
@@ -215,25 +211,43 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
               const SizedBox(height: 8),
             ],
 
-            // Errors
             if (_workflow!.errors.isNotEmpty) ...[
-              Card(
-                color: Colors.red[50],
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Errors', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-                      ..._workflow!.errors.map((e) => Text('• $e', style: const TextStyle(color: Colors.red))),
-                    ],
-                  ),
-                ),
+              Builder(
+                builder: (context) {
+                  final rawErrors = _workflow!.errors.toSet().toList(); // Deduplicate
+                  final isAiFailure = rawErrors.any((e) => e.contains('503') || e.contains('Gemini') || e.contains('AGENT_FAILED') || e.contains('temporarily'));
+                  final displayErrors = isAiFailure 
+                      ? ['The AI service is temporarily unavailable. Please try again in a few moments.']
+                      : rawErrors;
+
+                  return Card(
+                    color: Colors.red[50],
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Errors', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                          const SizedBox(height: 4),
+                          ...displayErrors.map((e) => Text('• $e', style: const TextStyle(color: Colors.red, fontSize: 13))),
+                          if (isAiFailure) ...[
+                             const SizedBox(height: 12),
+                             ElevatedButton.icon(
+                               onPressed: _starting ? null : _startWorkflow,
+                               icon: const Icon(Icons.refresh, size: 16),
+                               label: const Text('Retry Workflow'),
+                               style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                             )
+                          ]
+                        ],
+                      ),
+                    ),
+                  );
+                }
               ),
               const SizedBox(height: 8),
             ],
 
-            // Plan steps
             if (_workflow!.plan.steps.isNotEmpty) ...[
               const Text('Workflow Plan', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
@@ -246,15 +260,14 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
                   children: [
                     Text(step.objective, style: const TextStyle(fontSize: 12)),
                     if (step.outcomeSummary != null)
-                      Text(step.outcomeSummary!, style: const TextStyle(fontSize: 12, color: Color(0xFF27AE60))),
+                      Text(step.outcomeSummary!, style: TextStyle(fontSize: 12, color: const Color(0xFF27AE60))),
                   ],
                 ),
-                trailing: Text(step.status, style: TextStyle(fontSize: 11, color: _stepColor(step.status))),
+                trailing: Text(formatStatus(step.status), style: TextStyle(fontSize: 11, color: _stepColor(step.status))),
               )),
               const SizedBox(height: 8),
             ],
 
-            // Audit trail (compact)
             if (_workflow!.auditTrail.isNotEmpty) ...[
               const Text('Audit Trail', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
@@ -298,7 +311,7 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
       child: Row(
         children: [
-          Text('Status: ${_workflow!.status}', style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text('Status: ${formatStatus(_workflow!.status)}', style: const TextStyle(fontWeight: FontWeight.w600)),
           if (_workflow!.status == 'IN_PROGRESS') ...[
             const SizedBox(width: 8),
             const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),

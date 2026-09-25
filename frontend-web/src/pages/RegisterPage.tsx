@@ -46,6 +46,7 @@ export default function RegisterPage() {
               <input
                 id="firstName"
                 type="text"
+                placeholder="First name"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 required
@@ -56,6 +57,7 @@ export default function RegisterPage() {
               <input
                 id="lastName"
                 type="text"
+                placeholder="Last name"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 required
@@ -67,6 +69,7 @@ export default function RegisterPage() {
             <input
               id="email"
               type="email"
+              placeholder="name@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -78,6 +81,7 @@ export default function RegisterPage() {
             <input
               id="password"
               type="password"
+              placeholder="Choose a password (min 6 characters)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

@@ -35,14 +35,49 @@ class _ItemsFormState extends State<ItemsForm> {
     widget.onChanged(list);
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildField({
+    required String label,
+    required String initialValue,
+    required ValueChanged<String> onChanged,
+    TextInputType keyboardType = TextInputType.text,
+    String? prefixText,
+    String? hintText,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87)),
+        const SizedBox(height: 4),
+        TextFormField(
+          initialValue: initialValue,
+          keyboardType: keyboardType,
+          enabled: !widget.disabled,
+          style: const TextStyle(fontSize: 14),
+          decoration: InputDecoration(
+            prefixText: prefixText,
+            hintText: hintText,
+            hintStyle: const TextStyle(color: Colors.black38),
+            filled: true,
+            fillColor: widget.disabled ? Colors.grey[200] : Colors.grey[50],
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Colors.black26)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Colors.black26)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFF1E3A5F), width: 2)),
+          ),
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         Row(
           children: [
-            const Text('Items', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('Items', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF1E3A5F))),
             const Spacer(),
             if (!widget.disabled)
               TextButton.icon(
@@ -61,15 +96,17 @@ class _ItemsFormState extends State<ItemsForm> {
           final i = entry.key;
           final item = entry.value;
           return Card(
-            margin: const EdgeInsets.symmetric(vertical: 6),
+            elevation: 0,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.grey.shade300)),
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
                     children: [
-                      Text('Item ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black54, fontSize: 13)),
+                      Text('Item ${i + 1}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 16)),
                       const Spacer(),
                       if (!widget.disabled && widget.items.length > 1)
                         IconButton(
@@ -80,69 +117,43 @@ class _ItemsFormState extends State<ItemsForm> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  TextFormField(
+                  const SizedBox(height: 12),
+                  _buildField(
+                    label: 'Item Name *',
                     initialValue: item.itemName,
-                    decoration: const InputDecoration(labelText: 'Item name *', border: OutlineInputBorder(), isDense: true),
-                    enabled: !widget.disabled,
-                    onChanged: (v) => _update(i, ProcurementRequestItemInput(
-                      itemName: v, description: item.description, quantity: item.quantity,
-                      unit: item.unit, estimatedUnitPrice: item.estimatedUnitPrice,
-                    )),
+                    hintText: 'e.g. Dell Latitude 5420',
+                    onChanged: (v) => _update(i, ProcurementRequestItemInput(itemName: v, description: item.description, quantity: item.quantity, unit: item.unit, estimatedUnitPrice: item.estimatedUnitPrice)),
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          initialValue: item.quantity.toString(),
-                          decoration: const InputDecoration(labelText: 'Qty *', border: OutlineInputBorder(), isDense: true),
-                          keyboardType: TextInputType.number,
-                          enabled: !widget.disabled,
-                          onChanged: (v) => _update(i, ProcurementRequestItemInput(
-                            itemName: item.itemName, description: item.description,
-                            quantity: int.tryParse(v) ?? 1, unit: item.unit,
-                            estimatedUnitPrice: item.estimatedUnitPrice,
-                          )),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextFormField(
-                          initialValue: item.unit,
-                          decoration: const InputDecoration(labelText: 'Unit', border: OutlineInputBorder(), isDense: true),
-                          enabled: !widget.disabled,
-                          onChanged: (v) => _update(i, ProcurementRequestItemInput(
-                            itemName: item.itemName, description: item.description,
-                            quantity: item.quantity, unit: v,
-                            estimatedUnitPrice: item.estimatedUnitPrice,
-                          )),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 12),
+                  _buildField(
+                    label: 'Quantity *',
+                    initialValue: item.quantity > 0 ? item.quantity.toString() : '',
+                    hintText: '1',
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) => _update(i, ProcurementRequestItemInput(itemName: item.itemName, description: item.description, quantity: int.tryParse(v) ?? 1, unit: item.unit, estimatedUnitPrice: item.estimatedUnitPrice)),
                   ),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    initialValue: item.estimatedUnitPrice.toString(),
-                    decoration: const InputDecoration(labelText: 'Est. unit price *', border: OutlineInputBorder(), isDense: true, prefixText: '\$'),
+                  const SizedBox(height: 12),
+                  _buildField(
+                    label: 'Unit *',
+                    initialValue: item.unit,
+                    hintText: 'e.g. pcs, box, kg',
+                    onChanged: (v) => _update(i, ProcurementRequestItemInput(itemName: item.itemName, description: item.description, quantity: item.quantity, unit: v, estimatedUnitPrice: item.estimatedUnitPrice)),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildField(
+                    label: 'Estimated Unit Price *',
+                    initialValue: item.estimatedUnitPrice > 0 ? item.estimatedUnitPrice.toString() : '',
+                    hintText: '0.00',
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    enabled: !widget.disabled,
-                    onChanged: (v) => _update(i, ProcurementRequestItemInput(
-                      itemName: item.itemName, description: item.description,
-                      quantity: item.quantity, unit: item.unit,
-                      estimatedUnitPrice: double.tryParse(v) ?? 0.0,
-                    )),
+                    prefixText: '\$ ',
+                    onChanged: (v) => _update(i, ProcurementRequestItemInput(itemName: item.itemName, description: item.description, quantity: item.quantity, unit: item.unit, estimatedUnitPrice: double.tryParse(v) ?? 0.0)),
                   ),
-                  const SizedBox(height: 6),
-                  TextFormField(
+                  const SizedBox(height: 12),
+                  _buildField(
+                    label: 'Description *',
                     initialValue: item.description,
-                    decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder(), isDense: true),
-                    enabled: !widget.disabled,
-                    onChanged: (v) => _update(i, ProcurementRequestItemInput(
-                      itemName: item.itemName, description: v,
-                      quantity: item.quantity, unit: item.unit,
-                      estimatedUnitPrice: item.estimatedUnitPrice,
-                    )),
+                    hintText: 'e.g. 16GB RAM, 512GB SSD',
+                    onChanged: (v) => _update(i, ProcurementRequestItemInput(itemName: item.itemName, description: v, quantity: item.quantity, unit: item.unit, estimatedUnitPrice: item.estimatedUnitPrice)),
                   ),
                 ],
               ),
@@ -151,11 +162,11 @@ class _ItemsFormState extends State<ItemsForm> {
         }),
         if (widget.items.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               'Estimated total: \$${widget.items.fold<double>(0.0, (sum, it) => sum + it.quantity * it.estimatedUnitPrice).toStringAsFixed(2)}',
               textAlign: TextAlign.right,
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E3A5F)),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E3A5F)),
             ),
           ),
       ],
