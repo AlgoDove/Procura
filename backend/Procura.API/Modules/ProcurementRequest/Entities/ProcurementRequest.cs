@@ -22,5 +22,10 @@ namespace Procura.API.Modules.ProcurementRequest.Entities
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<ProcurementRequestItem> Items { get; set; } = new List<ProcurementRequestItem>();
+
+        /// <summary>
+        /// Associated approval workflow instance for this procurement request.
+        /// </summary>
+        public Procura.API.Modules.ApprovalWorkflow.Entities.ApprovalWorkflow? ApprovalWorkflow { get; set; }
     }
 }
