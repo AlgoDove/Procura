@@ -14,6 +14,6 @@ namespace Procura.API.Modules.ProcurementRequest.Services
         Task<ProcurementRequestResponseDto> UpdateAsync(Guid id, UpdateProcurementRequestDto dto, Guid requesterId);
         Task DeleteAsync(Guid id, Guid requesterId, string? role = null);
         Task SubmitAsync(Guid id, Guid requesterId);
-        Task UpdateStatusAsync(Guid id, RequestStatus newStatus, string role);
+        Task UpdateStatusAsync(Guid id, RequestStatus newStatus, string role, Guid? callerId = null);
     }
 }

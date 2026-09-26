@@ -898,7 +898,7 @@ namespace Procura.API.Tests.Modules.ProcurementRequest.Services
         }
 
         [Fact]
-        public async Task DeleteAsync_WhenAdmin_CanDeleteOtherUserDraftRequest()
+        public async Task DeleteAsync_WhenAdmin_CannotDeleteOtherUserDraftRequest()
         {
             // Arrange
             var requestId = Guid.NewGuid();
@@ -916,17 +916,151 @@ namespace Procura.API.Tests.Modules.ProcurementRequest.Services
                 .Setup(r => r.GetByIdAsync(requestId))
                 .ReturnsAsync(request);
 
+            // Act & Assert
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                () => _service.DeleteAsync(requestId, adminId, "ADMIN"));
+
+            _repositoryMock.Verify(r => r.Remove(It.IsAny<ProcurementRequestEntity>()), Times.Never);
+            _repositoryMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+        }
+
+        [Fact]
+        public async Task DeleteAsync_WhenProcurementOfficer_CannotDeleteOtherUserDraftRequest()
+        {
+            // Arrange
+            var requestId = Guid.NewGuid();
+            var requesterId = Guid.NewGuid();
+            var poId = Guid.NewGuid();
+
+            var request = new ProcurementRequestEntity
+            {
+                Id = requestId,
+                RequesterId = requesterId,
+                Status = RequestStatus.DRAFT
+            };
+
+            _repositoryMock
+                .Setup(r => r.GetByIdAsync(requestId))
+                .ReturnsAsync(request);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                () => _service.DeleteAsync(requestId, poId, "PROCUREMENT_OFFICER"));
+
+            _repositoryMock.Verify(r => r.Remove(It.IsAny<ProcurementRequestEntity>()), Times.Never);
+            _repositoryMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+        }
+
+        [Fact]
+        public async Task SubmitAsync_WhenNotRequester_ThrowsUnauthorizedAccessException()
+        {
+            // Arrange
+            var requestId = Guid.NewGuid();
+            var requesterId = Guid.NewGuid();
+            var otherUserId = Guid.NewGuid();
+
+            var request = new ProcurementRequestEntity
+            {
+                Id = requestId,
+                RequesterId = requesterId,
+                Status = RequestStatus.DRAFT,
+                Items = new List<ProcurementRequestItemEntity>
+                {
+                    new ProcurementRequestItemEntity { ItemName = "Test Item", Quantity = 1 }
+                }
+            };
+
+            _repositoryMock
+                .Setup(r => r.GetByIdAsync(requestId))
+                .ReturnsAsync(request);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(
+                () => _service.SubmitAsync(requestId, otherUserId));
+
+            _repositoryMock.Verify(r => r.Update(It.IsAny<ProcurementRequestEntity>()), Times.Never);
+            _repositoryMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_WhenAdminTriesToSubmitDraft_ThrowsInvalidOperationException()
+        {
+            // Arrange
+            var requestId = Guid.NewGuid();
+            var requesterId = Guid.NewGuid();
+            var adminId = Guid.NewGuid();
+
+            var request = new ProcurementRequestEntity
+            {
+                Id = requestId,
+                RequesterId = requesterId,
+                Status = RequestStatus.DRAFT
+            };
+
+            _repositoryMock
+                .Setup(r => r.GetByIdAsync(requestId))
+                .ReturnsAsync(request);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _service.UpdateStatusAsync(requestId, RequestStatus.SUBMITTED, "ADMIN", adminId));
+
+            _repositoryMock.Verify(r => r.Update(It.IsAny<ProcurementRequestEntity>()), Times.Never);
+            _repositoryMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_WhenProcurementOfficerTriesToSubmitDraft_ThrowsInvalidOperationException()
+        {
+            // Arrange
+            var requestId = Guid.NewGuid();
+            var requesterId = Guid.NewGuid();
+            var poId = Guid.NewGuid();
+
+            var request = new ProcurementRequestEntity
+            {
+                Id = requestId,
+                RequesterId = requesterId,
+                Status = RequestStatus.DRAFT
+            };
+
+            _repositoryMock
+                .Setup(r => r.GetByIdAsync(requestId))
+                .ReturnsAsync(request);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _service.UpdateStatusAsync(requestId, RequestStatus.SUBMITTED, "PROCUREMENT_OFFICER", poId));
+
+            _repositoryMock.Verify(r => r.Update(It.IsAny<ProcurementRequestEntity>()), Times.Never);
+            _repositoryMock.Verify(r => r.SaveChangesAsync(), Times.Never);
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_WhenEmployeeIsRequester_CanTransitionDraftToSubmitted()
+        {
+            // Arrange
+            var requestId = Guid.NewGuid();
+            var requesterId = Guid.NewGuid();
+
+            var request = new ProcurementRequestEntity
+            {
+                Id = requestId,
+                RequesterId = requesterId,
+                Status = RequestStatus.DRAFT
+            };
+
+            _repositoryMock
+                .Setup(r => r.GetByIdAsync(requestId))
+                .ReturnsAsync(request);
+
             // Act
-            await _service.DeleteAsync(requestId, adminId, "ADMIN");
+            await _service.UpdateStatusAsync(requestId, RequestStatus.SUBMITTED, "EMPLOYEE", requesterId);
 
             // Assert
-            _repositoryMock.Verify(
-                r => r.Remove(request),
-                Times.Once);
-
-            _repositoryMock.Verify(
-                r => r.SaveChangesAsync(),
-                Times.Once);
+            Assert.Equal(RequestStatus.SUBMITTED, request.Status);
+            _repositoryMock.Verify(r => r.Update(request), Times.Once);
+            _repositoryMock.Verify(r => r.SaveChangesAsync(), Times.Once);
         }
     }
 }
