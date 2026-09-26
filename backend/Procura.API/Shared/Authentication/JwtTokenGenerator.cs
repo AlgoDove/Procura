@@ -20,7 +20,10 @@ namespace Procura.API.Shared.Authentication
         public string GenerateToken(User user)
         {
             var jwtSettings = _configuration.GetSection("Jwt");
-            var keyString = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+            var keyString = _configuration["JWT_SECRET"]
+                ?? _configuration["Jwt:Key"]
+                ?? jwtSettings["Key"]
+                ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
             
             var claims = new[]

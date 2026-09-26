@@ -23,6 +23,7 @@ namespace Procura.API.Shared.Data
         public DbSet<VendorQuote> VendorQuotes { get; set; } = null!;
         public DbSet<VendorEvaluationCriterionScore> VendorEvaluationCriterionScores { get; set; } = null!;
         public DbSet<VendorEvaluationEntity> VendorEvaluations { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -38,7 +39,7 @@ namespace Procura.API.Shared.Data
                 entity.Property(e => e.Role).HasConversion<string>().IsRequired();
             });
 
-                modelBuilder.Entity<VendorSelection>(entity =>
+            modelBuilder.Entity<VendorSelection>(entity =>
             {
                 entity.HasKey(e => e.Id);
                 entity.HasIndex(e => e.ProcurementRequestId);

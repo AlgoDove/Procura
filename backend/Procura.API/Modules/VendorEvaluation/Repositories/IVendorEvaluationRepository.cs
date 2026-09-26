@@ -23,11 +23,6 @@ public interface IVendorEvaluationRepository
     Task<IReadOnlyList<Entities.VendorEvaluation>> GetByVendorIdAsync(Guid vendorId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieves a specific evaluation for a given procurement request and vendor pair.
-    /// </summary>
-    Task<Entities.VendorEvaluation?> GetByProcurementAndVendorAsync(Guid procurementRequestId, Guid vendorId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Adds a new VendorEvaluation record.
     /// </summary>
     Task<Entities.VendorEvaluation> AddAsync(Entities.VendorEvaluation evaluation, CancellationToken cancellationToken = default);
@@ -51,11 +46,6 @@ public interface IVendorEvaluationRepository
     /// Deletes all existing evaluations for a given procurement request (useful when re-running evaluation).
     /// </summary>
     Task DeleteByProcurementRequestIdAsync(Guid procurementRequestId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Checks if an evaluation exists with the given ID.
-    /// </summary>
-    Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Persists pending changes to the database.

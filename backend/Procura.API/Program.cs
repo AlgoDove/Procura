@@ -102,6 +102,7 @@ builder.Services.AddScoped<IVendorScoringEngine, VendorScoringEngine>();
 // Dependency Injection - Vendor Managemnent Module
 builder.Services.AddScoped<Procura.API.Modules.VendorManagement.Repositories.IVendorRepository, Procura.API.Modules.VendorManagement.Repositories.VendorRepository>();
 builder.Services.AddScoped<Procura.API.Modules.VendorManagement.Services.IVendorService, Procura.API.Modules.VendorManagement.Services.VendorService>();
+
 // Dependency Injection - AI Subsystem
 builder.Services.Configure<GeminiOptions>(options =>
 {
@@ -123,10 +124,14 @@ builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents
 builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.VendorManagement.Tools.SelectVendorTool>();
 builder.Services.AddScoped<IAgentTool, GetProcurementRequestTool>();
 builder.Services.AddScoped<IAgentTool, UpdateDraftRequestTool>();
+builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.VendorEvaluation.Tools.ScoreVendorsTool>();
+builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.VendorEvaluation.Tools.GenerateRecommendationTool>();
 builder.Services.AddScoped<ToolRegistry>();
 builder.Services.AddScoped<IProcurementRequestAgent, ProcurementRequestAgent>();
 builder.Services.AddScoped<Procura.API.AI.Agents.VendorManagement.VendorManagementDeterministicValidator>();
 builder.Services.AddScoped<Procura.API.AI.Agents.VendorManagement.IVendorManagementAgent, Procura.API.AI.Agents.VendorManagement.VendorManagementAgent>();
+builder.Services.AddScoped<Procura.API.AI.Agents.VendorEvaluation.VendorEvaluationDeterministicValidator>();
+builder.Services.AddScoped<Procura.API.AI.Agents.VendorEvaluation.IVendorEvaluationAgent, Procura.API.AI.Agents.VendorEvaluation.VendorEvaluationAgent>();
 builder.Services.AddScoped<IWorkflowOrchestrator, CentralOrchestrator>();
 
 // Configure JWT Authentication
