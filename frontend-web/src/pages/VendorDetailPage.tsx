@@ -16,7 +16,10 @@ export default function VendorDetailPage() {
     enabled: !!id,
   });
 
-  const canManage = user?.role === 'PROCUREMENT_OFFICER' || user?.role === 'ADMIN';
+  const canManage =
+    user?.role === 'PROCUREMENT_OFFICER' ||
+    user?.role === 'MANAGER' ||
+    user?.role === 'ADMIN';
 
   const activateMutation = useMutation({
     mutationFn: () => activateVendor(id!),
@@ -79,19 +82,14 @@ export default function VendorDetailPage() {
       <div className={styles.section}>
         <h2>Contact</h2>
         <dl className={styles.dl}>
-          <dt>Email</dt><dd>{vendor.contactEmail}</dd>
-          <dt>Phone</dt><dd>{vendor.contactPhone ?? '—'}</dd>
+          <dt>Contact Person</dt><dd>{vendor.contactPerson}</dd>
+          <dt>Email</dt><dd>{vendor.email}</dd>
+          <dt>Phone</dt><dd>{vendor.phoneNumber}</dd>
           <dt>Address</dt><dd>{vendor.address ?? '—'}</dd>
-          <dt>Rating</dt><dd>{vendor.rating != null ? vendor.rating.toFixed(1) : '—'}</dd>
+          <dt>Rating</dt><dd>{vendor.rating.toFixed(1)}</dd>
           <dt>Created</dt><dd>{new Date(vendor.createdAt).toLocaleDateString()}</dd>
           <dt>Updated</dt><dd>{new Date(vendor.updatedAt).toLocaleDateString()}</dd>
         </dl>
-        {vendor.notes && (
-          <div className={styles.longText}>
-            <strong>Notes</strong>
-            <p>{vendor.notes}</p>
-          </div>
-        )}
       </div>
     </div>
   );

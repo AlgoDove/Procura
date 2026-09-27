@@ -17,21 +17,23 @@ export default function EditVendorPage() {
   });
 
   const [name, setName] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [address, setAddress] = useState('');
   const [category, setCategory] = useState('');
-  const [notes, setNotes] = useState('');
+  const [rating, setRating] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!vendor) return;
     setName(vendor.name);
-    setContactEmail(vendor.contactEmail);
-    setContactPhone(vendor.contactPhone ?? '');
+    setContactPerson(vendor.contactPerson);
+    setEmail(vendor.email);
+    setPhoneNumber(vendor.phoneNumber);
     setAddress(vendor.address ?? '');
     setCategory(vendor.category);
-    setNotes(vendor.notes ?? '');
+    setRating(vendor.rating);
   }, [vendor]);
 
   const { mutate, isPending } = useMutation({
@@ -50,7 +52,7 @@ export default function EditVendorPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    mutate({ name, contactEmail, contactPhone: contactPhone || undefined, address: address || undefined, category, notes: notes || undefined });
+    mutate({ name, contactPerson, email, phoneNumber, address: address || undefined, category, rating });
   };
 
   if (isLoading) return <p>Loading…</p>;
@@ -72,21 +74,27 @@ export default function EditVendorPage() {
           </div>
           <div className={styles.row}>
             <div className={styles.field}>
-              <label>Contact email *</label>
-              <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} required />
+              <label>Contact person *</label>
+              <input type="text" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} required />
             </div>
             <div className={styles.field}>
-              <label>Contact phone</label>
-              <input type="text" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+              <label>Contact email *</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </div>
+          </div>
+          <div className={styles.row}>
+            <div className={styles.field}>
+              <label>Contact phone *</label>
+              <input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} required />
+            </div>
+            <div className={styles.field}>
+              <label htmlFor="rating">Rating</label>
+              <input id="rating" type="number" min={0} max={5} step={0.1} value={rating} onChange={(e) => setRating(Number(e.target.value))} />
             </div>
           </div>
           <div className={styles.field}>
             <label>Address</label>
             <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
-          </div>
-          <div className={styles.field}>
-            <label>Notes</label>
-            <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
         {formError && <p className={styles.error}>{formError}</p>}
