@@ -1,0 +1,233 @@
+.container { max-width: 860px; }
+
+.headerRow { margin-bottom: 0.5rem; }
+.back {
+  color: #1e3a5f;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.back:hover { text-decoration: underline; }
+
+.heading {
+  font-size: 1.4rem;
+  color: #1e3a5f;
+  margin: 0.25rem 0 1rem;
+}
+
+.intro {
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.errorCard {
+  border-color: #f5c6cb;
+  background: #fdf2f2;
+}
+
+.cardTitle {
+  font-size: 1rem;
+  color: #1e3a5f;
+  margin: 0 0 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.field label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.field textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.field textarea:focus { border-color: #1e3a5f; }
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.btnPrimary {
+  background: #6c3483;
+  color: #fff;
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btnPrimary:hover:not(:disabled) { background: #5b2c6f; }
+.btnPrimary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btnSecondary {
+  background: #fff;
+  color: #333;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.btnSecondary:hover { background: #f5f5f5; }
+
+.statusBanner {
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  background: #f0f4f8;
+  border: 1px solid #dde;
+}
+
+.status_IN_PROGRESS { background: #ebf5fb; border-color: #aed6f1; }
+.status_NEEDS_USER_INPUT { background: #fef9e7; border-color: #f9ca24; }
+.status_COMPLETED { background: #eafaf1; border-color: #82e0aa; }
+.status_FAILED { background: #fdf2f2; border-color: #f5c6cb; }
+.status_APPROVED { background: #eafaf1; border-color: #82e0aa; }
+.status_REJECTED { background: #fdf2f2; border-color: #f5c6cb; }
+
+.spinner { animation: spin 1s linear infinite; display: inline-block; margin-left: 0.5rem; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.clarificationPrompt {
+  background: #fef9e7;
+  border-left: 3px solid #f9ca24;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.summary {
+  font-size: 0.9rem;
+  color: #333;
+  line-height: 1.5;
+}
+
+.note {
+  font-size: 0.8rem;
+  color: #c0392b;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: #fdf2f2;
+  border-radius: 4px;
+}
+
+.reqLink {
+  color: #1e3a5f;
+  font-weight: 600;
+}
+
+.error {
+  color: #c0392b;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Plan steps */
+.planSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.planStep {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.stepIcon {
+  font-size: 1.1rem;
+  margin-top: 0.1rem;
+  min-width: 20px;
+  text-align: center;
+}
+
+.stepBody { flex: 1; }
+
+.stepHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stepName {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #333;
+}
+
+.stepStatus {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.stepObjective {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0.15rem 0 0;
+}
+
+.stepOutcome {
+  font-size: 0.8rem;
+  color: #27ae60;
+  margin: 0.15rem 0 0;
+  font-style: italic;
+}
+
+/* Audit trail */
+.audit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-family: 'Courier New', monospace;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.auditEntry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 3px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  align-items: center;
+}
+
+.secViolation { background: #fdf2f2; border-color: #f5c6cb; }
+
+.auditTime { color: #888; min-width: 70px; }
+.auditStage { color: #6c3483; }
+.auditActor { color: #1e3a5f; font-weight: 600; }
+.auditAction { color: #333; flex: 1; }
+.auditTool { color: #888; font-style: italic; }
+.auditStatus { font-weight: 700; }
+.secLabel { color: #c0392b; font-weight: 700; font-size: 0.7rem; }

@@ -107,7 +107,7 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "EMPLOYEE,ADMIN")]
+        [Authorize(Roles = "EMPLOYEE")]
         public async Task<IActionResult> Delete(Guid id)
         {
             try
@@ -158,7 +158,7 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
         {
             try
             {
-                await _service.UpdateStatusAsync(id, newStatus, GetUserRole());
+                await _service.UpdateStatusAsync(id, newStatus, GetUserRole(), GetUserId());
                 return Ok(new { Message = "Status updated successfully." });
             }
             catch (KeyNotFoundException)

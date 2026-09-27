@@ -31,7 +31,10 @@ namespace Procura.API.Shared.Authentication
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
                 new Claim("role", user.Role.ToString()),
-                new Claim(ClaimTypes.Role, user.Role.ToString())
+                new Claim(ClaimTypes.Role, user.Role.ToString()),
+                new Claim("firstName", user.FirstName ?? string.Empty),
+                new Claim("lastName", user.LastName ?? string.Empty),
+                new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}".Trim())
             };
 
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

@@ -1,0 +1,99 @@
+.wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.header strong { font-size: 0.95rem; }
+.header small { color: #888; font-size: 0.8rem; }
+
+.addBtn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid #1e3a5f;
+  color: #1e3a5f;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.addBtn:hover { background: #f0f4f8; }
+
+.empty {
+  color: #c0392b;
+  font-size: 0.85rem;
+}
+
+.itemCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background: #fafafa;
+}
+
+.itemHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.itemNum {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.removeBtn {
+  background: transparent;
+  border: none;
+  color: #c0392b;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0;
+}
+.removeBtn:hover { text-decoration: underline; }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.field label {
+  font-size: 0.8rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.field input {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.fullWidth { grid-column: 1 / -1; }
+
+.total {
+  text-align: right;
+  font-weight: 600;
+  color: #1e3a5f;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}

@@ -116,7 +116,7 @@ namespace Procura.API.Modules.ProcurementRequest.Services
         {
             var request = await _repository.GetByIdAsync(id);
             if (request == null) throw new KeyNotFoundException("Request not found.");
-            if (role != "ADMIN" && request.RequesterId != requesterId)
+            if (request.RequesterId != requesterId)
                 throw new UnauthorizedAccessException("Not authorized to delete this request.");
             if (request.Status != RequestStatus.DRAFT)
                 throw new InvalidOperationException("Only DRAFT requests can be deleted.");
@@ -140,7 +140,7 @@ namespace Procura.API.Modules.ProcurementRequest.Services
             await _repository.SaveChangesAsync();
         }
 
-        public async Task UpdateStatusAsync(Guid id, RequestStatus newStatus, string role)
+        public async Task UpdateStatusAsync(Guid id, RequestStatus newStatus, string role, Guid? callerId = null)
         {
             var request = await _repository.GetByIdAsync(id);
             if (request == null) throw new KeyNotFoundException("Request not found.");
@@ -151,24 +151,34 @@ namespace Procura.API.Modules.ProcurementRequest.Services
             switch (request.Status)
             {
                 case RequestStatus.DRAFT:
-                    if (newStatus == RequestStatus.SUBMITTED) isValidTransition = true;
+                    // Only the owner employee can transition their own DRAFT to SUBMITTED
+                    if (newStatus == RequestStatus.SUBMITTED && role == "EMPLOYEE" && (callerId == null || callerId == Guid.Empty || request.RequesterId == callerId))
+                        isValidTransition = true;
                     break;
                 case RequestStatus.SUBMITTED:
-                    if (newStatus == RequestStatus.UNDER_EVALUATION && (role == "PROCUREMENT_OFFICER" || role == "MANAGER" || role == "ADMIN")) isValidTransition = true;
+                    if (newStatus == RequestStatus.UNDER_EVALUATION && (role == "PROCUREMENT_OFFICER" || role == "MANAGER" || role == "ADMIN"))
+                        isValidTransition = true;
                     break;
                 case RequestStatus.UNDER_EVALUATION:
-                    if (newStatus == RequestStatus.PENDING_APPROVAL && (role == "PROCUREMENT_OFFICER" || role == "MANAGER" || role == "ADMIN")) isValidTransition = true;
+                    if (newStatus == RequestStatus.PENDING_APPROVAL && (role == "PROCUREMENT_OFFICER" || role == "MANAGER" || role == "ADMIN"))
+                        isValidTransition = true;
                     break;
                 case RequestStatus.PENDING_APPROVAL:
-                    if (newStatus == RequestStatus.APPROVED && (role == "MANAGER" || role == "ADMIN")) isValidTransition = true;
-                    if (newStatus == RequestStatus.REJECTED && (role == "MANAGER" || role == "ADMIN")) isValidTransition = true;
-                    if (newStatus == RequestStatus.REVISION_REQUESTED && (role == "MANAGER" || role == "ADMIN")) isValidTransition = true;
+                    if (newStatus == RequestStatus.APPROVED && (role == "MANAGER" || role == "ADMIN"))
+                        isValidTransition = true;
+                    if (newStatus == RequestStatus.REJECTED && (role == "MANAGER" || role == "ADMIN"))
+                        isValidTransition = true;
+                    if (newStatus == RequestStatus.REVISION_REQUESTED && (role == "MANAGER" || role == "ADMIN"))
+                        isValidTransition = true;
                     break;
                 case RequestStatus.APPROVED:
-                    if (newStatus == RequestStatus.COMPLETED && (role == "PROCUREMENT_OFFICER" || role == "ADMIN")) isValidTransition = true;
+                    if (newStatus == RequestStatus.COMPLETED && (role == "PROCUREMENT_OFFICER" || role == "ADMIN"))
+                        isValidTransition = true;
                     break;
                 case RequestStatus.REVISION_REQUESTED:
-                    if (newStatus == RequestStatus.DRAFT) isValidTransition = true; // Typically triggered by employee to fix it
+                    // Only the owner employee can return a revision-requested request to DRAFT
+                    if (newStatus == RequestStatus.DRAFT && role == "EMPLOYEE" && (callerId == null || callerId == Guid.Empty || request.RequesterId == callerId))
+                        isValidTransition = true;
                     break;
             }
 

@@ -1,0 +1,38 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.heading { font-size: 1.4rem; color: #1e3a5f; margin: 0; }
+.btnPrimary {
+  background: #1e3a5f;
+  color: #fff;
+  padding: 0.45rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+.btnPrimary:hover { background: #16304f; }
+.filters { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+.select { padding: 0.45rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; background: #fff; }
+.table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; font-size: 0.875rem; }
+.table th { background: #f0f4f8; padding: 0.6rem 0.75rem; text-align: left; font-weight: 600; color: #444; }
+.table td { padding: 0.6rem 0.75rem; border-top: 1px solid #e2e8f0; vertical-align: middle; }
+.table tr:hover td { background: #f8fafc; }
+.badge { color: #fff; font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; display: inline-block; }
+.link { color: #1e3a5f; text-decoration: none; font-weight: 500; }
+.link:hover { text-decoration: underline; }
+.actionsCell { display: flex; gap: 0.4rem; align-items: center; }
+.btnSmall { background: #f0f4f8; border: 1px solid #ccc; color: #333; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; text-decoration: none; display: inline-block; }
+.btnSmall:hover { background: #e2e8f0; }
+.btnDanger { background: #c0392b; color: #fff; border: none; }
+.btnDanger:hover { background: #a93226; }
+.btnSuccess { background: #27ae60; color: #fff; border: none; }
+.btnSuccess:hover { background: #229a56; }
+.state, .emptyState { padding: 2rem; text-align: center; color: #777; }
+.errorState { color: #c0392b; }
+.errorBanner { background: #fdf2f2; border: 1px solid #f5c6cb; color: #c0392b; padding: 0.6rem 0.9rem; border-radius: 4px; margin-bottom: 0.75rem; font-size: 0.875rem; }
