@@ -16,7 +16,10 @@ export default function VendorDetailPage() {
     enabled: !!id,
   });
 
-  const canManage = user?.role === 'PROCUREMENT_OFFICER' || user?.role === 'ADMIN';
+  const canManage =
+    user?.role === 'PROCUREMENT_OFFICER' ||
+    user?.role === 'MANAGER' ||
+    user?.role === 'ADMIN';
 
   const activateMutation = useMutation({
     mutationFn: () => activateVendor(id!),

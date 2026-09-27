@@ -18,7 +18,9 @@ export default function VendorsListPage() {
   });
 
   const canManage =
-    user?.role === 'PROCUREMENT_OFFICER' || user?.role === 'ADMIN';
+    user?.role === 'PROCUREMENT_OFFICER' ||
+    user?.role === 'MANAGER' ||
+    user?.role === 'ADMIN';
 
   const activateMutation = useMutation({
     mutationFn: (id: string) => activateVendor(id),
