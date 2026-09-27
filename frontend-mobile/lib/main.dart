@@ -8,6 +8,10 @@ import 'screens/request_detail_screen.dart';
 import 'screens/create_request_screen.dart';
 import 'screens/edit_request_screen.dart';
 import 'screens/ai_workflow_screen.dart';
+import 'screens/vendors_list_screen.dart';
+import 'screens/vendor_detail_screen.dart';
+import 'screens/create_vendor_screen.dart';
+import 'screens/edit_vendor_screen.dart';
 
 void main() {
   runApp(
@@ -52,6 +56,10 @@ class ProcuraApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const RequestsListScreen());
           case '/requests/create':
             return MaterialPageRoute(builder: (_) => const CreateRequestScreen());
+          case '/vendors':
+            return MaterialPageRoute(builder: (_) => const VendorsListScreen());
+          case '/vendors/create':
+            return MaterialPageRoute(builder: (_) => const CreateVendorScreen());
           default:
             if (settings.name?.startsWith('/requests/') == true) {
               final parts = settings.name!.split('/');
@@ -68,6 +76,18 @@ class ProcuraApp extends StatelessWidget {
               }
               return MaterialPageRoute(
                 builder: (_) => RequestDetailScreen(requestId: id),
+              );
+            }
+            if (settings.name?.startsWith('/vendors/') == true) {
+              final parts = settings.name!.split('/');
+              final id = parts[2];
+              if (parts.length == 4 && parts[3] == 'edit') {
+                return MaterialPageRoute(
+                  builder: (_) => EditVendorScreen(vendorId: id),
+                );
+              }
+              return MaterialPageRoute(
+                builder: (_) => VendorDetailScreen(vendorId: id),
               );
             }
             return null;

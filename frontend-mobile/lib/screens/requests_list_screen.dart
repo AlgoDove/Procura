@@ -74,6 +74,11 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
         title: const Text('Procurement Requests'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.store),
+            tooltip: 'Vendors',
+            onPressed: () => Navigator.pushNamed(context, '/vendors'),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadRequests,
             tooltip: 'Refresh',
