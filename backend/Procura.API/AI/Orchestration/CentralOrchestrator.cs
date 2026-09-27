@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Procura.API.AI.Agents.ProcurementRequest;
 using Procura.API.AI.Agents.VendorManagement;
 using Procura.API.AI.Agents.VendorEvaluation;
+using Procura.API.AI.Agents.ApprovalWorkflow;
 using Procura.API.AI.Core;
 using Procura.API.AI.Entities;
 using Procura.API.AI.Persistence;
@@ -20,6 +21,7 @@ namespace Procura.API.AI.Orchestration
         private readonly IProcurementRequestAgent _procurementAgent;
         private readonly IVendorManagementAgent _vendorAgent;
         private readonly IVendorEvaluationAgent _evaluationAgent;
+        private readonly IProcurementDecisionSupportAgent? _approvalAgent;
         private readonly ILogger<CentralOrchestrator> _logger;
 
         private const int MaxExecutionCycles = 3;
@@ -35,13 +37,15 @@ namespace Procura.API.AI.Orchestration
             IProcurementRequestAgent procurementAgent,
             IVendorManagementAgent vendorAgent,
             IVendorEvaluationAgent evaluationAgent,
-            ILogger<CentralOrchestrator> logger)
+            ILogger<CentralOrchestrator> logger,
+            IProcurementDecisionSupportAgent? approvalAgent = null)
         {
             _workflowRepository = workflowRepository;
             _procurementAgent = procurementAgent;
             _vendorAgent = vendorAgent;
             _evaluationAgent = evaluationAgent;
             _logger = logger;
+            _approvalAgent = approvalAgent;
         }
 
         public async Task<WorkflowContext> ProcessWorkflowAsync(
@@ -349,10 +353,100 @@ namespace Procura.API.AI.Orchestration
                         break; // Step 3 complete; future steps remain PLANNED / NOT_STARTED
                     }
                 }
+                else if (context.CurrentStage == WorkflowStage.APPROVAL_WORKFLOW)
+                {
+                    if (_approvalAgent == null)
+                    {
+                        _logger.LogInformation("Approval Decision Support Agent not registered. Workflow pausing in WAITING_FOR_HUMAN_APPROVAL.");
+                        context.Status = WorkflowStatus.WAITING_FOR_HUMAN_APPROVAL;
+                        break;
+                    }
+
+                    var step4 = context.Plan.Steps.FirstOrDefault(s => s.Stage == WorkflowStage.APPROVAL_WORKFLOW);
+                    if (step4 != null)
+                    {
+                        step4.Status = StepStatus.IN_PROGRESS;
+                        step4.StartedAt = DateTime.UtcNow;
+                    }
+
+                    context.AddAudit(
+                        WorkflowStage.APPROVAL_WORKFLOW,
+                        "CentralOrchestrator",
+                        "AGENT_DELEGATED",
+                        "DELEGATED",
+                        $"Delegating APPROVAL_WORKFLOW decision support task to {_approvalAgent.AgentName}.");
+
+                    var agentResult = await _approvalAgent.ExecuteAsync(context, ct);
+
+                    if (agentResult.Status == AgentExecutionStatus.NEEDS_USER_INPUT)
+                    {
+                        if (step4 != null)
+                        {
+                            step4.Status = StepStatus.PENDING;
+                            step4.OutcomeSummary = agentResult.ExecutionSummary;
+                        }
+
+                        context.Status = WorkflowStatus.NEEDS_USER_INPUT;
+                        context.ClarificationPrompt = agentResult.ClarificationPrompt;
+                        context.ExecutionSummary = agentResult.ExecutionSummary;
+
+                        context.AddAudit(
+                            WorkflowStage.APPROVAL_WORKFLOW,
+                            "CentralOrchestrator",
+                            "WORKFLOW_PAUSED",
+                            "NEEDS_USER_INPUT",
+                            "Workflow paused awaiting additional input before approval.");
+
+                        break;
+                    }
+                    else if (agentResult.Status == AgentExecutionStatus.FAILED)
+                    {
+                        if (step4 != null)
+                        {
+                            step4.Status = StepStatus.FAILED;
+                            step4.OutcomeSummary = agentResult.ExecutionSummary;
+                        }
+
+                        context.Status = WorkflowStatus.FAILED;
+                        context.Errors.AddRange(agentResult.ErrorMessages);
+                        context.Errors.AddRange(agentResult.ValidationErrors);
+                        context.ExecutionSummary = agentResult.ExecutionSummary;
+
+                        context.AddAudit(
+                            WorkflowStage.APPROVAL_WORKFLOW,
+                            "CentralOrchestrator",
+                            "WORKFLOW_FAILED",
+                            "FAILED",
+                            $"Workflow failed during APPROVAL_WORKFLOW stage: {agentResult.ExecutionSummary}");
+
+                        break;
+                    }
+                    else if (agentResult.Status == AgentExecutionStatus.COMPLETED)
+                    {
+                        if (step4 != null)
+                        {
+                            step4.Status = StepStatus.COMPLETED;
+                            step4.CompletedAt = DateTime.UtcNow;
+                            step4.OutcomeSummary = agentResult.ExecutionSummary;
+                        }
+
+                        context.ExecutionSummary = agentResult.ExecutionSummary;
+                        context.Status = WorkflowStatus.WAITING_FOR_HUMAN_APPROVAL;
+                        context.CurrentStage = WorkflowStage.APPROVAL_WORKFLOW;
+
+                        context.AddAudit(
+                            WorkflowStage.APPROVAL_WORKFLOW,
+                            "CentralOrchestrator",
+                            "DECISION_MEMO_READY",
+                            "WAITING_FOR_HUMAN_APPROVAL",
+                            "Procurement Decision Support Agent formulated decision memo. Awaiting Manager final approval.");
+
+                        break; // Step 4 complete: strictly awaiting human Manager approval
+                    }
+                }
                 else
                 {
-                    // Future agents (Step 4: ApprovalWorkflow) will plug in here
-                    _logger.LogInformation("Workflow stage {Stage} is planned for future agent integration.", context.CurrentStage);
+                    _logger.LogInformation("Workflow stage {Stage} has no registered agent.", context.CurrentStage);
                     break;
                 }
             }

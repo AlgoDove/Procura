@@ -103,6 +103,14 @@ builder.Services.AddScoped<IVendorScoringEngine, VendorScoringEngine>();
 builder.Services.AddScoped<Procura.API.Modules.VendorManagement.Repositories.IVendorRepository, Procura.API.Modules.VendorManagement.Repositories.VendorRepository>();
 builder.Services.AddScoped<Procura.API.Modules.VendorManagement.Services.IVendorService, Procura.API.Modules.VendorManagement.Services.VendorService>();
 
+// Dependency Injection - Approval Workflow Module (Component 4)
+builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Repositories.IApprovalWorkflowRepository, Procura.API.Modules.ApprovalWorkflow.Repositories.ApprovalWorkflowRepository>();
+builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Services.IWorkflowStateTransitionEngine, Procura.API.Modules.ApprovalWorkflow.Services.WorkflowStateTransitionEngine>();
+builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Services.IApprovalWorkflowService, Procura.API.Modules.ApprovalWorkflow.Services.ApprovalWorkflowService>();
+builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Repositories.INotificationRepository, Procura.API.Modules.ApprovalWorkflow.Repositories.NotificationRepository>();
+builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Services.IEmailNotificationService, Procura.API.Modules.ApprovalWorkflow.Services.EmailNotificationService>();
+builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Services.INotificationService, Procura.API.Modules.ApprovalWorkflow.Services.NotificationService>();
+
 // Dependency Injection - AI Subsystem
 builder.Services.Configure<GeminiOptions>(options =>
 {
@@ -126,12 +134,17 @@ builder.Services.AddScoped<IAgentTool, GetProcurementRequestTool>();
 builder.Services.AddScoped<IAgentTool, UpdateDraftRequestTool>();
 builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.VendorEvaluation.Tools.ScoreVendorsTool>();
 builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.VendorEvaluation.Tools.GenerateRecommendationTool>();
+builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.ApprovalWorkflow.Tools.EvaluateApprovalReadinessTool>();
+builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.ApprovalWorkflow.Tools.GenerateExecutiveBriefTool>();
+builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.ApprovalWorkflow.Tools.RecordAiAgentExecutionTool>();
 builder.Services.AddScoped<ToolRegistry>();
 builder.Services.AddScoped<IProcurementRequestAgent, ProcurementRequestAgent>();
 builder.Services.AddScoped<Procura.API.AI.Agents.VendorManagement.VendorManagementDeterministicValidator>();
 builder.Services.AddScoped<Procura.API.AI.Agents.VendorManagement.IVendorManagementAgent, Procura.API.AI.Agents.VendorManagement.VendorManagementAgent>();
 builder.Services.AddScoped<Procura.API.AI.Agents.VendorEvaluation.VendorEvaluationDeterministicValidator>();
 builder.Services.AddScoped<Procura.API.AI.Agents.VendorEvaluation.IVendorEvaluationAgent, Procura.API.AI.Agents.VendorEvaluation.VendorEvaluationAgent>();
+builder.Services.AddScoped<Procura.API.AI.Agents.ApprovalWorkflow.ApprovalDecisionDeterministicValidator>();
+builder.Services.AddScoped<Procura.API.AI.Agents.ApprovalWorkflow.IProcurementDecisionSupportAgent, Procura.API.AI.Agents.ApprovalWorkflow.ProcurementDecisionSupportAgent>();
 builder.Services.AddScoped<IWorkflowOrchestrator, CentralOrchestrator>();
 
 // Configure JWT Authentication

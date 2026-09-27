@@ -7,6 +7,7 @@ using VendorEvaluationEntity = Procura.API.Modules.VendorEvaluation.Entities.Ven
 using Procura.API.Modules.VendorEvaluation.Entities;
 
 using Procura.API.AI.Entities;
+using Procura.API.Modules.ApprovalWorkflow.Entities;
 
 namespace Procura.API.Shared.Data
 {
@@ -23,6 +24,10 @@ namespace Procura.API.Shared.Data
         public DbSet<VendorQuote> VendorQuotes { get; set; } = null!;
         public DbSet<VendorEvaluationCriterionScore> VendorEvaluationCriterionScores { get; set; } = null!;
         public DbSet<VendorEvaluationEntity> VendorEvaluations { get; set; } = null!;
+        public DbSet<ApprovalWorkflow> ApprovalWorkflows { get; set; } = null!;
+        public DbSet<ApprovalDecision> ApprovalDecisions { get; set; } = null!;
+        public DbSet<AIAgentExecution> AIAgentExecutions { get; set; } = null!;
+        public DbSet<Notification> Notifications { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -161,6 +166,76 @@ namespace Procura.API.Shared.Data
                 entity.Property(e => e.CurrentStage).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.RequesterRole).IsRequired().HasMaxLength(50);
+            });
+
+            modelBuilder.Entity<ApprovalWorkflow>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.CurrentStatus).HasConversion<string>().IsRequired();
+                entity.HasIndex(e => e.ProcurementRequestId).IsUnique();
+
+                entity.HasOne(e => e.ProcurementRequest)
+                      .WithOne(r => r.ApprovalWorkflow)
+                      .HasForeignKey<ApprovalWorkflow>(e => e.ProcurementRequestId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.Decisions)
+                      .WithOne(d => d.ApprovalWorkflow)
+                      .HasForeignKey(d => d.ApprovalWorkflowId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.AIAgentExecutions)
+                      .WithOne(a => a.ApprovalWorkflow)
+                      .HasForeignKey(a => a.ApprovalWorkflowId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(e => e.Notifications)
+                      .WithOne(n => n.ApprovalWorkflow)
+                      .HasForeignKey(n => n.ApprovalWorkflowId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ApprovalDecision>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Decision).HasConversion<string>().IsRequired();
+                entity.Property(e => e.Comments).HasColumnType("text");
+                entity.HasIndex(e => e.ApprovalWorkflowId);
+                entity.HasIndex(e => e.ManagerId);
+
+                entity.HasOne(e => e.Manager)
+                      .WithMany()
+                      .HasForeignKey(e => e.ManagerId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<AIAgentExecution>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.AgentName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.ExecutionStatus).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.InputSummary).HasColumnType("text");
+                entity.Property(e => e.OutputSummary).HasColumnType("text");
+                entity.Property(e => e.ValidationResult).HasColumnType("text");
+                entity.Property(e => e.ToolExecutionMetadata).HasColumnType("text");
+                entity.HasIndex(e => e.ApprovalWorkflowId);
+            });
+
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.Message).IsRequired().HasColumnType("text");
+                entity.Property(e => e.Type).HasConversion<string>().IsRequired();
+                entity.Property(e => e.IsRead).HasDefaultValue(false).IsRequired();
+                entity.HasIndex(e => e.ApprovalWorkflowId);
+                entity.HasIndex(e => e.RecipientUserId);
+                entity.HasIndex(e => e.IsRead);
+
+                entity.HasOne(e => e.RecipientUser)
+                      .WithMany()
+                      .HasForeignKey(e => e.RecipientUserId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }
