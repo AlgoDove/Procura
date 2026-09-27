@@ -104,7 +104,7 @@ export default function VendorsListPage() {
                   <Link to={`/vendors/${v.id}`} className={styles.link}>{v.name}</Link>
                 </td>
                 <td>{v.category}</td>
-                <td>{v.contactEmail}</td>
+                <td>{v.email}</td>
                 <td>
                   <span
                     className={styles.badge}
@@ -113,7 +113,7 @@ export default function VendorsListPage() {
                     {v.status}
                   </span>
                 </td>
-                <td>{v.rating != null ? v.rating.toFixed(1) : '—'}</td>
+                <td>{v.rating.toFixed(1)}</td>
                 {canManage && (
                   <td className={styles.actionsCell}>
                     <Link to={`/vendors/${v.id}/edit`} className={styles.btnSmall}>Edit</Link>
