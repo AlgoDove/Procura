@@ -13,6 +13,11 @@ import type {
   UpdateVendorDto,
   UserSummaryResponse,
   UpdateUserRoleRequest,
+  VendorQuoteResponseDto,
+  CreateVendorQuoteDto,
+  EvaluateVendorsRequestDto,
+  VendorEvaluationResponseDto,
+  ProcurementEvaluationSummaryDto,
 } from '../types/api';
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
@@ -56,6 +61,9 @@ export const processAiWorkflow = (data: ProcessAiRequest) =>
 export const getAiWorkflow = (workflowId: string) =>
   apiClient.get<WorkflowProcessResponse>(`/api/procurement-requests/ai/workflows/${workflowId}`).then((r) => r.data);
 
+export const getWorkflowForRequest = (procurementRequestId: string) =>
+  apiClient.get<WorkflowProcessResponse>(`/api/procurement-requests/${procurementRequestId}/workflow`).then((r) => r.data);
+
 // ─── Vendors ───────────────────────────────────────────────────────────────
 
 export const getVendors = (params?: { status?: string; category?: string }) =>
@@ -83,4 +91,41 @@ export const getUsers = () =>
 
 export const updateUserRole = (id: string, role: UpdateUserRoleRequest['role']) =>
   apiClient.patch<UserSummaryResponse>(`/api/users/${id}/role`, { role }).then((r) => r.data);
+
+// ─── Vendor Evaluation & Quotes ─────────────────────────────────────────────
+
+export const getVendorQuotes = (procurementRequestId: string) =>
+  apiClient
+    .get<VendorQuoteResponseDto[]>(`/api/vendor-quotes/procurement-request/${procurementRequestId}`)
+    .then((r) => r.data);
+
+export const getSelectedVendorsForRequest = (procurementRequestId: string) =>
+  apiClient
+    .get<VendorResponse[]>(`/api/vendor-quotes/procurement-request/${procurementRequestId}/selected-vendors`)
+    .then((r) => r.data);
+
+export const submitVendorQuote = (data: CreateVendorQuoteDto) =>
+  apiClient
+    .post<VendorQuoteResponseDto>('/api/vendor-quotes', data)
+    .then((r) => r.data);
+
+export const getVendorQuoteById = (id: string) =>
+  apiClient
+    .get<VendorQuoteResponseDto>(`/api/vendor-quotes/${id}`)
+    .then((r) => r.data);
+
+export const evaluateVendors = (data: EvaluateVendorsRequestDto) =>
+  apiClient
+    .post<ProcurementEvaluationSummaryDto>('/api/vendor-evaluations/evaluate', data)
+    .then((r) => r.data);
+
+export const getVendorEvaluations = (procurementRequestId: string) =>
+  apiClient
+    .get<VendorEvaluationResponseDto[]>(`/api/vendor-evaluations/procurement-request/${procurementRequestId}`)
+    .then((r) => r.data);
+
+export const getRecommendationSummary = (procurementRequestId: string) =>
+  apiClient
+    .get<ProcurementEvaluationSummaryDto>(`/api/vendor-evaluations/procurement-request/${procurementRequestId}/recommendation`)
+    .then((r) => r.data);
 

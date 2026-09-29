@@ -53,7 +53,7 @@ namespace Procura.API.AI.Agents.VendorEvaluation.Tools
                     return ToolResult.Fail(Name, "Invalid ScoreVendorsTool input: ProcurementRequestId is required.");
                 }
 
-                var summary = await _evaluationService.EvaluateAndRankCandidateVendorsAsync(requestDto, ct);
+                var summary = await _evaluationService.EvaluateAndRankCandidateVendorsAsync(requestDto, generatedByAgent: true, cancellationToken: ct);
                 return ToolResult.Ok(Name, summary);
             }
             catch (Exception ex)

@@ -68,8 +68,8 @@ namespace Procura.API.Tests.Modules.VendorEvaluation.Services
 
             Assert.True(candidate1.OverallScore > candidate2.OverallScore);
             Assert.Empty(candidate1.RiskFlags);
-            Assert.Contains(candidate2.RiskFlags, r => r.Contains("PRICE_EXCEEDS_BUDGET"));
-            Assert.Contains(candidate2.RiskFlags, r => r.Contains("DELIVERY_EXCEEDS_REQUIREMENT"));
+            Assert.Contains(candidate2.RiskFlags, r => r.Contains("exceeds estimated budget"));
+            Assert.Contains(candidate2.RiskFlags, r => r.Contains("exceeds required"));
         }
 
         [Fact]
@@ -99,8 +99,8 @@ namespace Procura.API.Tests.Modules.VendorEvaluation.Services
             Assert.Single(results);
             var result = results.First();
 
-            Assert.Contains(result.RiskFlags, r => r.Contains("LOW_RELIABILITY_SCORE"));
-            Assert.Contains(result.RiskFlags, r => r.Contains("NON_COMPLIANT_VENDOR"));
+            Assert.Contains(result.RiskFlags, r => r.Contains("Reliability rating"));
+            Assert.Contains(result.RiskFlags, r => r.Contains("not compliance-approved"));
         }
 
         [Fact]
@@ -171,7 +171,7 @@ namespace Procura.API.Tests.Modules.VendorEvaluation.Services
             var reliabilityCrit = result.CriterionScores.First(c => c.CriterionName == EvaluationCriterionType.RELIABILITY);
 
             Assert.Equal(90.00m, reliabilityCrit.Score);
-            Assert.DoesNotContain(result.RiskFlags, r => r.Contains("LOW_RELIABILITY_SCORE"));
+            Assert.DoesNotContain(result.RiskFlags, r => r.Contains("Reliability rating"));
         }
 
         [Fact]
@@ -260,7 +260,7 @@ namespace Procura.API.Tests.Modules.VendorEvaluation.Services
             Assert.Single(results);
             var complianceCrit = results.First().CriterionScores.First(c => c.CriterionName == EvaluationCriterionType.COMPLIANCE);
             Assert.Equal(0m, complianceCrit.Score);
-            Assert.Contains(results.First().RiskFlags, r => r.Contains("NON_COMPLIANT_VENDOR"));
+            Assert.Contains(results.First().RiskFlags, r => r.Contains("not compliance-approved"));
         }
     }
 }

@@ -1,11 +1,14 @@
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using Procura.API.Modules.VendorEvaluation.DTOs;
 using Procura.API.Modules.VendorEvaluation.Entities;
 using Procura.API.Modules.VendorEvaluation.Repositories;
 using Procura.API.Modules.VendorEvaluation.Services;
 using Procura.API.Modules.VendorManagement.DTOs;
+using Procura.API.Modules.VendorManagement.Entities;
 using Procura.API.Modules.VendorManagement.Enums;
 using Procura.API.Modules.VendorManagement.Services;
+using Procura.API.Shared.Data;
 using Xunit;
 
 namespace Procura.API.Tests.Modules.VendorEvaluation.Services;
@@ -14,13 +17,20 @@ public class VendorQuoteServiceTests
 {
     private readonly Mock<IVendorQuoteRepository> _repositoryMock;
     private readonly Mock<IVendorService> _vendorServiceMock;
+    private readonly ApplicationDbContext _dbContext;
     private readonly VendorQuoteService _sut;
 
     public VendorQuoteServiceTests()
     {
         _repositoryMock = new Mock<IVendorQuoteRepository>();
         _vendorServiceMock = new Mock<IVendorService>();
-        _sut = new VendorQuoteService(_repositoryMock.Object, _vendorServiceMock.Object);
+
+        var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        _dbContext = new ApplicationDbContext(dbOptions);
+
+        _sut = new VendorQuoteService(_repositoryMock.Object, _vendorServiceMock.Object, _dbContext);
     }
 
     private static VendorResponseDto MakeVendor(Guid id, VendorStatus status, string name = "Acme Supplies") => new()
@@ -225,5 +235,115 @@ public class VendorQuoteServiceTests
         var result = await _sut.GetQuoteByIdAsync(id);
 
         Assert.Null(result);
+    }
+
+    // ---------- Vendor Selection Enforcement & Retrieval ----------
+
+    [Fact]
+    public async Task SubmitQuoteAsync_VendorNotSelectedForRequest_ThrowsInvalidOperationException()
+    {
+        var requestId = Guid.NewGuid();
+        var selectedVendorId = Guid.NewGuid();
+        var unselectedVendorId = Guid.NewGuid();
+
+        // Seed a selection for this request
+        _dbContext.VendorSelections.Add(new VendorSelection
+        {
+            Id = Guid.NewGuid(),
+            ProcurementRequestId = requestId,
+            VendorId = selectedVendorId,
+            CreatedAt = DateTime.UtcNow
+        });
+        await _dbContext.SaveChangesAsync();
+
+        var unselectedVendor = MakeVendor(unselectedVendorId, VendorStatus.ACTIVE, "Unselected Vendor");
+        _vendorServiceMock.Setup(v => v.GetByIdAsync(unselectedVendorId)).ReturnsAsync(unselectedVendor);
+
+        var dto = MakeCreateDto(unselectedVendorId, requestId);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.SubmitQuoteAsync(dto));
+        Assert.Contains("not a selected vendor", ex.Message);
+    }
+
+    [Fact]
+    public async Task SubmitQuoteAsync_VendorIsSelectedForRequest_Succeeds()
+    {
+        var requestId = Guid.NewGuid();
+        var selectedVendorId = Guid.NewGuid();
+
+        // Seed selection
+        _dbContext.VendorSelections.Add(new VendorSelection
+        {
+            Id = Guid.NewGuid(),
+            ProcurementRequestId = requestId,
+            VendorId = selectedVendorId,
+            CreatedAt = DateTime.UtcNow
+        });
+        await _dbContext.SaveChangesAsync();
+
+        var vendor = MakeVendor(selectedVendorId, VendorStatus.ACTIVE, "Selected Vendor");
+        _vendorServiceMock.Setup(v => v.GetByIdAsync(selectedVendorId)).ReturnsAsync(vendor);
+
+        _repositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<VendorQuote>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((VendorQuote q, CancellationToken _) => q);
+        _repositoryMock
+            .Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        var dto = MakeCreateDto(selectedVendorId, requestId);
+        var result = await _sut.SubmitQuoteAsync(dto);
+
+        Assert.NotNull(result);
+        Assert.Equal(selectedVendorId, result.VendorId);
+    }
+
+    [Fact]
+    public async Task GetSelectedVendorsForRequestAsync_ReturnsOnlySelectedActiveVendors()
+    {
+        var requestId = Guid.NewGuid();
+        var activeSelectedVendor = new Vendor
+        {
+            Id = Guid.NewGuid(),
+            Name = "Active Selected",
+            ContactPerson = "John",
+            Email = "active@test.com",
+            PhoneNumber = "123",
+            Category = "IT",
+            Status = VendorStatus.ACTIVE
+        };
+        var inactiveSelectedVendor = new Vendor
+        {
+            Id = Guid.NewGuid(),
+            Name = "Inactive Selected",
+            ContactPerson = "Jane",
+            Email = "inactive@test.com",
+            PhoneNumber = "456",
+            Category = "IT",
+            Status = VendorStatus.INACTIVE
+        };
+        var notSelectedVendor = new Vendor
+        {
+            Id = Guid.NewGuid(),
+            Name = "Not Selected",
+            ContactPerson = "Bob",
+            Email = "notselected@test.com",
+            PhoneNumber = "789",
+            Category = "IT",
+            Status = VendorStatus.ACTIVE
+        };
+
+        _dbContext.Vendors.AddRange(activeSelectedVendor, inactiveSelectedVendor, notSelectedVendor);
+        _dbContext.VendorSelections.AddRange(
+            new VendorSelection { Id = Guid.NewGuid(), ProcurementRequestId = requestId, VendorId = activeSelectedVendor.Id },
+            new VendorSelection { Id = Guid.NewGuid(), ProcurementRequestId = requestId, VendorId = inactiveSelectedVendor.Id }
+        );
+        await _dbContext.SaveChangesAsync();
+
+        var result = await _sut.GetSelectedVendorsForRequestAsync(requestId);
+
+        Assert.Single(result);
+        Assert.Equal(activeSelectedVendor.Id, result[0].Id);
+        Assert.Equal("Active Selected", result[0].Name);
     }
 }

@@ -7,6 +7,7 @@ namespace Procura.API.AI.Persistence
     public interface IWorkflowRepository
     {
         Task<WorkflowInstance?> GetByIdAsync(Guid id);
+        Task<WorkflowInstance?> GetByProcurementRequestIdAsync(Guid procurementRequestId);
         Task AddAsync(WorkflowInstance instance);
         void Update(WorkflowInstance instance);
         Task SaveChangesAsync();

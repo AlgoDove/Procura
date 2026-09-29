@@ -7,7 +7,8 @@ namespace Procura.API.Modules.VendorEvaluation.Controllers;
 
 [ApiController]
 [Route("api/vendor-quotes")]
-[Authorize(Roles = "PROCUREMENT_OFFICER,MANAGER")]
+[Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
+[Authorize]
 public class VendorQuotesController : ControllerBase
 {
     private readonly IVendorQuoteService _quoteService;
@@ -15,6 +16,7 @@ public class VendorQuotesController : ControllerBase
     public VendorQuotesController(IVendorQuoteService quoteService)
     {
         _quoteService = quoteService;
+        
     }
 
     [HttpPost]
@@ -29,6 +31,13 @@ public class VendorQuotesController : ControllerBase
     {
         var quotes = await _quoteService.GetQuotesByRequestIdAsync(requestId, cancellationToken);
         return Ok(quotes);
+    }
+
+    [HttpGet("procurement-request/{requestId}/selected-vendors")]
+    public async Task<IActionResult> GetSelectedVendorsForRequest(Guid requestId, CancellationToken cancellationToken)
+    {
+        var vendors = await _quoteService.GetSelectedVendorsForRequestAsync(requestId, cancellationToken);
+        return Ok(vendors);
     }
 
     [HttpGet("{id}")]

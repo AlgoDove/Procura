@@ -1,29 +1,74 @@
+using System;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Procura.API.Modules.VendorEvaluation.DTOs;
 using Procura.API.Modules.VendorEvaluation.Services;
+using Procura.API.Modules.ProcurementRequest.Services;
 
 namespace Procura.API.Modules.VendorEvaluation.Controllers;
 
 /// <summary>
 /// Controller providing REST endpoints for vendor evaluation, scoring, ranking, and recommendations.
-/// Enforces JWT authentication and Role-Based Access Control (PROCUREMENT_OFFICER, MANAGER).
+/// Write actions require PROCUREMENT_OFFICER or ADMIN. Detailed evaluation reads (per-vendor scores,
+/// criterion breakdowns) require PROCUREMENT_OFFICER or ADMIN. Employees may view only the final
+/// recommendation summary for procurement requests they own. Deletion requires ADMIN.
 /// </summary>
 [ApiController]
 [Route("api/vendor-evaluations")]
-[Authorize(Roles = "PROCUREMENT_OFFICER,MANAGER,ADMIN")]
+[Authorize]
 [Produces("application/json")]
 public class VendorEvaluationController : ControllerBase
 {
     private readonly IVendorEvaluationService _evaluationService;
+    private readonly IProcurementRequestService _procurementRequestService;
     private readonly ILogger<VendorEvaluationController> _logger;
 
     public VendorEvaluationController(
         IVendorEvaluationService evaluationService,
+        IProcurementRequestService procurementRequestService,
         ILogger<VendorEvaluationController> logger)
     {
         _evaluationService = evaluationService ?? throw new ArgumentNullException(nameof(evaluationService));
+        _procurementRequestService = procurementRequestService ?? throw new ArgumentNullException(nameof(procurementRequestService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    private Guid GetUserId()
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                           ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
+            throw new UnauthorizedAccessException("Invalid token claims.");
+        return userId;
+    }
+
+    private string GetUserRole() => User.FindFirst(ClaimTypes.Role)?.Value ?? "EMPLOYEE";
+
+    /// <summary>
+    /// For EMPLOYEE callers, verifies they own the procurement request. Returns null if access is allowed,
+    /// or an appropriate ActionResult (403/404) if it should be denied.
+    /// Used only by endpoints intentionally open to employees (the recommendation summary).
+    /// </summary>
+    private async Task<ActionResult?> CheckOwnershipAsync(Guid procurementRequestId)
+    {
+        if (GetUserRole() != "EMPLOYEE")
+        {
+            return null; // officers/admins are unrestricted
+        }
+
+        var request = await _procurementRequestService.GetByIdAsync(procurementRequestId);
+        if (request == null)
+        {
+            return NotFound();
+        }
+
+        if (request.RequesterId != GetUserId())
+        {
+            return Problem(detail: "Not authorized to view this request.", statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -33,6 +78,7 @@ public class VendorEvaluationController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Executive recommendation summary with ranked candidates.</returns>
     [HttpPost("evaluate")]
+    [Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
     [ProducesResponseType(typeof(ProcurementEvaluationSummaryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -47,7 +93,7 @@ public class VendorEvaluationController : ControllerBase
         }
 
         _logger.LogInformation("Processing evaluation for ProcurementRequest {ProcurementRequestId}", request.ProcurementRequestId);
-        var summary = await _evaluationService.EvaluateAndRankCandidateVendorsAsync(request, cancellationToken);
+        var summary = await _evaluationService.EvaluateAndRankCandidateVendorsAsync(request, generatedByAgent: false, cancellationToken: cancellationToken);
         return Ok(summary);
     }
 
@@ -58,19 +104,22 @@ public class VendorEvaluationController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of vendor evaluations ordered by rank.</returns>
     [HttpGet("procurement-request/{procurementRequestId:guid}")]
+    [Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
     [ProducesResponseType(typeof(IReadOnlyList<VendorEvaluationResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IReadOnlyList<VendorEvaluationResponseDto>>> GetByProcurementRequestId(
         [FromRoute] Guid procurementRequestId,
         CancellationToken cancellationToken)
-    {
+    {  
+
         var evaluations = await _evaluationService.GetEvaluationsByProcurementRequestIdAsync(procurementRequestId, cancellationToken);
         return Ok(evaluations);
     }
 
     /// <summary>
     /// Retrieves the executive recommendation summary for human review and downstream Approval Workflow Management.
+    /// Employees may only view recommendations for requests they own.
     /// </summary>
     /// <param name="procurementRequestId">UUID of the procurement request.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -84,6 +133,12 @@ public class VendorEvaluationController : ControllerBase
         [FromRoute] Guid procurementRequestId,
         CancellationToken cancellationToken)
     {
+        var deny = await CheckOwnershipAsync(procurementRequestId);
+        if (deny != null)
+        {
+            return deny;
+        }
+
         var summary = await _evaluationService.GetRecommendationSummaryAsync(procurementRequestId, cancellationToken);
         if (summary == null)
         {
@@ -100,6 +155,7 @@ public class VendorEvaluationController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Evaluation details or 404 Not Found.</returns>
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
     [ProducesResponseType(typeof(VendorEvaluationResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -124,6 +180,7 @@ public class VendorEvaluationController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of vendor evaluations.</returns>
     [HttpGet("vendor/{vendorId:guid}")]
+    [Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
     [ProducesResponseType(typeof(IReadOnlyList<VendorEvaluationResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -142,6 +199,7 @@ public class VendorEvaluationController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Created evaluation response.</returns>
     [HttpPost]
+    [Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
     [ProducesResponseType(typeof(VendorEvaluationResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -167,6 +225,7 @@ public class VendorEvaluationController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Updated evaluation response or 404 Not Found.</returns>
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
     [ProducesResponseType(typeof(VendorEvaluationResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -198,7 +257,7 @@ public class VendorEvaluationController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>204 No Content or 404 Not Found.</returns>
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "MANAGER")]
+    [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

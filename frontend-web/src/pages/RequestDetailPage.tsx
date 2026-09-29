@@ -17,6 +17,7 @@ import {
   formatDate,
   formatDateTime,
 } from '../utils/formatters';
+import VendorEvaluationSection from '../components/vendor-evaluation/VendorEvaluationSection';
 import styles from './RequestDetailPage.module.css';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -107,13 +108,12 @@ export default function RequestDetailPage() {
   // Role-appropriate permissions — employee-owned draft management
   const canEdit = isEmployee && isOwner && isDraft;
   const canSubmit = isEmployee && isOwner && isDraft;
-  const canUseAi = isEmployee && isOwner && isDraft;
+
   // Delete is strictly allowed ONLY when status is DRAFT and user is the employee owner
   const canDelete = isEmployee && isOwner && isDraft;
 
   // Status transitions
   const canBeginEvaluation = (isOfficer || isAdmin) && request.status === 'SUBMITTED';
-  const canSubmitForApproval = isOfficer && request.status === 'UNDER_EVALUATION';
   const canApprove = isAdmin && request.status === 'PENDING_APPROVAL';
   const canReturnToDraft = isEmployee && isOwner && request.status === 'REVISION_REQUESTED';
   const canComplete = (isOfficer || isAdmin) && request.status === 'APPROVED';
@@ -182,11 +182,7 @@ export default function RequestDetailPage() {
             </Link>
           )}
 
-          {canUseAi && (
-            <Link to={`/requests/${id}/ai`} className={styles.btnAi}>
-              🤖 AI Assistant
-            </Link>
-          )}
+
 
           {/* Revision return to draft */}
           {canReturnToDraft && (
@@ -212,16 +208,6 @@ export default function RequestDetailPage() {
             </button>
           )}
 
-          {canSubmitForApproval && (
-            <button
-              type="button"
-              className={styles.btnPrimary}
-              onClick={() => statusMutation.mutate('PENDING_APPROVAL')}
-              disabled={statusMutation.isPending}
-            >
-              {statusMutation.isPending ? 'Updating…' : 'Submit for Approval'}
-            </button>
-          )}
 
           {/* Admin Approval Actions */}
           {canApprove && !confirmAction && (
@@ -396,6 +382,50 @@ export default function RequestDetailPage() {
           </tbody>
         </table>
       </div>
+
+      {/* For Employees: When in UNDER_EVALUATION, show evaluation in progress notice */}
+      {isEmployee && request.status === 'UNDER_EVALUATION' && (
+        <div className={styles.bannerInfo}>
+          <span style={{ fontSize: '1.25rem' }}>⏳</span>
+          <div>
+            <strong>Vendor Evaluation in Progress:</strong> The procurement team is actively reviewing quotes and evaluating suppliers. The approved vendor recommendation will be displayed here once finalized.
+          </div>
+        </div>
+      )}
+
+      {/* For Employees: When in PENDING_APPROVAL, show waiting for management approval notice */}
+      {isEmployee && request.status === 'PENDING_APPROVAL' && (
+        <div className={styles.bannerInfo}>
+          <span style={{ fontSize: '1.25rem' }}>📋</span>
+          <div>
+            <strong>Awaiting Management Approval:</strong> Candidate vendors have been evaluated and the recommendation has been submitted. This request is now waiting for manager approval.
+          </div>
+        </div>
+      )}
+
+      {/* Vendor Evaluation & Recommendation Section:
+          - Officers, Managers, and Admins see during UNDER_EVALUATION, PENDING_APPROVAL, APPROVED, COMPLETED
+          - Employees only see the approved recommendation once APPROVED or COMPLETED */}
+      {((!isEmployee && (['UNDER_EVALUATION', 'PENDING_APPROVAL', 'APPROVED', 'COMPLETED'] as const).includes(request.status as 'UNDER_EVALUATION' | 'PENDING_APPROVAL' | 'APPROVED' | 'COMPLETED')) ||
+        (isEmployee && (['APPROVED', 'COMPLETED'] as const).includes(request.status as 'APPROVED' | 'COMPLETED'))) && (
+        <VendorEvaluationSection
+          procurementRequestId={request.id}
+          requestStatus={request.status}
+          userRole={user?.role}
+          estimatedBudget={request.estimatedTotal}
+          requiredDeliveryDays={
+            request.requiredByDate
+              ? Math.max(
+                  0,
+                  Math.ceil(
+                    (new Date(request.requiredByDate).getTime() - new Date().getTime()) /
+                      (1000 * 60 * 60 * 24)
+                  )
+                )
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }

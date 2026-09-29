@@ -16,5 +16,7 @@ namespace Procura.API.AI.Orchestration
             CancellationToken ct = default);
 
         Task<WorkflowContext?> GetWorkflowAsync(Guid workflowId, Guid requesterId, string requesterRole);
+
+        Task<WorkflowContext?> GetWorkflowByProcurementRequestIdAsync(Guid procurementRequestId, Guid requesterId, string requesterRole);
     }
 }
