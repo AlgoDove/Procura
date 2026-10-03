@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../utils/formatters.dart';
 import 'edit_request_screen.dart';
 import 'ai_workflow_screen.dart';
+import 'widgets/approval_workflow_card.dart';
 import 'widgets/vendor_recommendation_card.dart';
 
 class RequestDetailScreen extends StatefulWidget {
@@ -259,6 +260,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           summary: _evaluationSummary,
           requestStatus: r.status,
           userRole: role,
+        ),
+
+        // Approval Workflow Management
+        const SizedBox(height: 12),
+        ApprovalWorkflowCard(
+          requestId: widget.requestId,
+          onStatusChanged: _load,
         ),
       ],
     );

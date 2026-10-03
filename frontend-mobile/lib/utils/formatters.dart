@@ -16,3 +16,13 @@ String formatTotal(double total) {
   if (total <= 0) return 'TBD';
   return '\$${total.toStringAsFixed(2)}';
 }
+
+String formatDate(String? isoString) {
+  if (isoString == null || isoString.isEmpty) return '—';
+  try {
+    final d = DateTime.parse(isoString);
+    return d.toLocal().toString().split(' ')[0];
+  } catch (_) {
+    return isoString;
+  }
+}

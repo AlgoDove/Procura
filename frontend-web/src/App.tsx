@@ -15,6 +15,7 @@ import VendorsListPage from './pages/VendorsListPage';
 import VendorDetailPage from './pages/VendorDetailPage';
 import CreateVendorPage from './pages/CreateVendorPage';
 import EditVendorPage from './pages/EditVendorPage';
+import PendingApprovalsPage from './pages/approvals/PendingApprovalsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +67,13 @@ function AppRoutes() {
                   <Route path="/vendors/new" element={<CreateVendorPage />} />
                   <Route path="/vendors/:id" element={<VendorDetailPage />} />
                   <Route path="/vendors/:id/edit" element={<EditVendorPage />} />
+                </Route>
+
+                {/* Approval routes — accessible to MANAGER and ADMIN */}
+                <Route
+                  element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']} />}
+                >
+                  <Route path="/approvals" element={<PendingApprovalsPage />} />
                 </Route>
 
                 {/* Admin routes — accessible only to ADMIN */}

@@ -17,6 +17,7 @@ import {
   formatDate,
   formatDateTime,
 } from '../utils/formatters';
+import ApprovalWorkflowSection from '../components/approvals/ApprovalWorkflowSection';
 import VendorEvaluationSection from '../components/vendor-evaluation/VendorEvaluationSection';
 import styles from './RequestDetailPage.module.css';
 
@@ -426,6 +427,9 @@ export default function RequestDetailPage() {
           }
         />
       )}
+
+      {/* Approval Workflow & Manager Review Lifecycle */}
+      <ApprovalWorkflowSection requestId={id!} />
     </div>
   );
 }
