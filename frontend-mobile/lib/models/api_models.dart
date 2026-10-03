@@ -472,4 +472,92 @@ class ProcurementEvaluationSummaryDto {
             ?.map((e) => VendorEvaluationResponseDto.fromJson(e as Map<String, dynamic>))
             .toList() ?? [];
 }
+// ─── Vendor DTOs ───────────────────────────────────────────────────────────
+
+class VendorResponse {
+  final String id;
+  final String name;
+  final String contactPerson;
+  final String email;
+  final String phoneNumber;
+  final String? address;
+  final String category;
+  final double rating;
+  final String status;
+  final String createdAt;
+  final String updatedAt;
+
+  VendorResponse.fromJson(Map<String, dynamic> j)
+      : id = j['id'] as String? ?? '',
+        name = j['name'] as String? ?? '',
+        contactPerson = j['contactPerson'] as String? ?? '',
+        email = j['email'] as String? ?? '',
+        phoneNumber = j['phoneNumber'] as String? ?? '',
+        address = j['address'] as String?,
+        category = j['category'] as String? ?? '',
+        rating = (j['rating'] as num?)?.toDouble() ?? 0.0,
+        status = j['status'] as String? ?? 'ACTIVE',
+        createdAt = j['createdAt'] as String? ?? '',
+        updatedAt = j['updatedAt'] as String? ?? '';
+}
+
+class CreateVendorDto {
+  final String name;
+  final String contactPerson;
+  final String email;
+  final String phoneNumber;
+  final String? address;
+  final String category;
+  final double rating;
+
+  CreateVendorDto({
+    required this.name,
+    required this.contactPerson,
+    required this.email,
+    required this.phoneNumber,
+    this.address,
+    required this.category,
+    this.rating = 0.0,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'contactPerson': contactPerson,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        if (address != null && address!.isNotEmpty) 'address': address,
+        'category': category,
+        'rating': rating,
+      };
+}
+
+class UpdateVendorDto {
+  final String name;
+  final String contactPerson;
+  final String email;
+  final String phoneNumber;
+  final String? address;
+  final String category;
+  final double rating;
+
+  UpdateVendorDto({
+    required this.name,
+    required this.contactPerson,
+    required this.email,
+    required this.phoneNumber,
+    this.address,
+    required this.category,
+    this.rating = 0.0,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'contactPerson': contactPerson,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        if (address != null && address!.isNotEmpty) 'address': address,
+        'category': category,
+        'rating': rating,
+      };
+}
 
