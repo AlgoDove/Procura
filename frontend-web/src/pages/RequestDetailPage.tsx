@@ -17,6 +17,7 @@ import {
   formatDate,
   formatDateTime,
 } from '../utils/formatters';
+import ApprovalWorkflowSection from '../components/approvals/ApprovalWorkflowSection';
 import styles from './RequestDetailPage.module.css';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -396,6 +397,9 @@ export default function RequestDetailPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Approval Workflow & Manager Review Lifecycle */}
+      <ApprovalWorkflowSection requestId={id!} />
     </div>
   );
 }

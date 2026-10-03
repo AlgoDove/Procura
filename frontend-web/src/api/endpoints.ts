@@ -14,6 +14,12 @@ import type {
   UserSummaryResponse,
   UpdateUserRoleRequest,
 } from '../types/api';
+import type {
+  WorkflowState,
+  ApprovalWorkflowResponseDto,
+  WorkflowAuditTrailDto,
+  NotificationResponseDto,
+} from '../types/approval';
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
 
@@ -83,4 +89,69 @@ export const getUsers = () =>
 
 export const updateUserRole = (id: string, role: UpdateUserRoleRequest['role']) =>
   apiClient.patch<UserSummaryResponse>(`/api/users/${id}/role`, { role }).then((r) => r.data);
+
+// ─── Approval Workflows ──────────────────────────────────────────────────
+
+export const getApprovalWorkflows = (status?: WorkflowState) =>
+  apiClient
+    .get<ApprovalWorkflowResponseDto[]>('/api/approval-workflows', {
+      params: status ? { status } : undefined,
+    })
+    .then((r) => r.data);
+
+export const getPendingApprovals = () =>
+  apiClient.get<ApprovalWorkflowResponseDto[]>('/api/approval-workflows/pending').then((r) => r.data);
+
+export const getApprovalWorkflowById = (id: string) =>
+  apiClient.get<ApprovalWorkflowResponseDto>(`/api/approval-workflows/${id}`).then((r) => r.data);
+
+export const getApprovalWorkflowByRequestId = (procurementRequestId: string) =>
+  apiClient
+    .get<ApprovalWorkflowResponseDto>(`/api/approval-workflows/procurement-request/${procurementRequestId}`)
+    .then((r) => r.data);
+
+export const initializeApprovalWorkflow = (procurementRequestId: string) =>
+  apiClient
+    .post<ApprovalWorkflowResponseDto>('/api/approval-workflows/initialize', { procurementRequestId })
+    .then((r) => r.data);
+
+export const transitionApprovalWorkflow = (id: string, targetStatus: WorkflowState) =>
+  apiClient
+    .post<ApprovalWorkflowResponseDto>(`/api/approval-workflows/${id}/transition`, { targetStatus })
+    .then((r) => r.data);
+
+export const approveWorkflow = (id: string, comments?: string) =>
+  apiClient
+    .post<ApprovalWorkflowResponseDto>(`/api/approval-workflows/${id}/approve`, { comments })
+    .then((r) => r.data);
+
+export const rejectWorkflow = (id: string, comments: string) =>
+  apiClient
+    .post<ApprovalWorkflowResponseDto>(`/api/approval-workflows/${id}/reject`, { comments })
+    .then((r) => r.data);
+
+export const requestWorkflowRevision = (id: string, comments: string) =>
+  apiClient
+    .post<ApprovalWorkflowResponseDto>(`/api/approval-workflows/${id}/request-revision`, { comments })
+    .then((r) => r.data);
+
+export const getWorkflowAuditTrail = (id: string) =>
+  apiClient.get<WorkflowAuditTrailDto>(`/api/approval-workflows/${id}/audit-trail`).then((r) => r.data);
+
+export const getUserNotifications = (unreadOnly?: boolean) =>
+  apiClient
+    .get<NotificationResponseDto[]>('/api/approval-workflows/notifications', {
+      params: unreadOnly !== undefined ? { unreadOnly } : undefined,
+    })
+    .then((r) => r.data);
+
+export const getUnreadNotificationCount = () =>
+  apiClient.get<{ unreadCount: number }>('/api/approval-workflows/notifications/unread-count').then((r) => r.data);
+
+export const markNotificationAsRead = (id: string) =>
+  apiClient.patch(`/api/approval-workflows/notifications/${id}/read`).then((r) => r.data);
+
+export const markAllNotificationsAsRead = () =>
+  apiClient.post('/api/approval-workflows/notifications/mark-all-read').then((r) => r.data);
+
 

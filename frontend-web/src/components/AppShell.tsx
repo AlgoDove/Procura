@@ -15,6 +15,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const isEmployee = user?.role === 'EMPLOYEE';
   const isProcurementOfficer = user?.role === 'PROCUREMENT_OFFICER';
+  const isManager = user?.role === 'MANAGER';
   const isAdmin = user?.role === 'ADMIN';
 
   const navLinkClass = (path: string) =>
@@ -37,6 +38,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             {(isProcurementOfficer || isAdmin) && (
               <Link to="/vendors" className={navLinkClass('/vendors')}>
                 Vendors
+              </Link>
+            )}
+            {(isManager || isAdmin) && (
+              <Link to="/approvals" className={navLinkClass('/approvals')}>
+                Approvals
               </Link>
             )}
             {isAdmin && (
