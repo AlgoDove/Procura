@@ -234,5 +234,37 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
                 return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
             }
         }
+
+        [HttpGet("{id}/workflow")]
+        public async Task<IActionResult> GetWorkflowForRequest(Guid id)
+        {
+            try
+            {
+                var context = await _orchestrator.GetWorkflowByProcurementRequestIdAsync(id, GetUserId(), GetUserRole());
+                if (context == null) return NotFound("No AI workflow found for this request.");
+
+                var response = new WorkflowProcessResponseDto
+                {
+                    WorkflowId = context.WorkflowId,
+                    Status = context.Status.ToString(),
+                    CurrentStage = context.CurrentStage.ToString(),
+                    ProcurementRequestId = context.ProcurementRequestId,
+                    RequestNumber = context.RequestNumber,
+                    EstimatedTotal = context.EstimatedTotal,
+                    ExecutionSummary = context.ExecutionSummary,
+                    ClarificationPrompt = context.ClarificationPrompt,
+                    Errors = context.Errors,
+                    Plan = context.Plan,
+                    AuditTrail = context.AuditTrail,
+                    UpdatedAt = context.UpdatedAt
+                };
+
+                return Ok(response);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Problem(detail: ex.Message, statusCode: StatusCodes.Status403Forbidden, title: "Forbidden");
+            }
+        }
     }
 }

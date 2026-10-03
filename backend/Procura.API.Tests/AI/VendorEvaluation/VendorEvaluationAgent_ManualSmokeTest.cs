@@ -63,6 +63,7 @@ namespace Procura.API.Tests.AI.VendorEvaluation
             serviceMock
                 .Setup(s => s.EvaluateAndRankCandidateVendorsAsync(
                     It.IsAny<EvaluateVendorsRequestDto>(),
+                    It.IsAny<bool>(),
                     It.IsAny<System.Threading.CancellationToken>()))
                 .ReturnsAsync(new ProcurementEvaluationSummaryDto
                 {

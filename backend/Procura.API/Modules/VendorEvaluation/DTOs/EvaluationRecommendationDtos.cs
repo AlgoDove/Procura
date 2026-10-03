@@ -24,6 +24,8 @@ public class CandidateVendorMetricDto
 
     public bool IsComplianceApproved { get; set; }
 
+    public string? Notes { get; set; }
+
     public List<string>? KnownRisks { get; set; }
 }
 

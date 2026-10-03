@@ -88,6 +88,7 @@ namespace Procura.API.AI.Orchestration
             {
                 context = InitializeNewWorkflow(objective, requesterId, requesterRole, existingRequestId, Guid.NewGuid());
             }
+              
 
             // Enforce execution cycle limit
             int cycles = 0;
@@ -473,6 +474,22 @@ namespace Procura.API.AI.Orchestration
             return JsonSerializer.Deserialize<WorkflowContext>(instance.ContextJson, JsonOptions);
         }
 
+        public async Task<WorkflowContext?> GetWorkflowByProcurementRequestIdAsync(Guid procurementRequestId, Guid requesterId, string requesterRole)
+        {
+            var instance = await _workflowRepository.GetByProcurementRequestIdAsync(procurementRequestId);
+            if (instance == null) return null;
+
+            if (requesterRole == "EMPLOYEE" && instance.RequesterId != requesterId)
+            {
+                throw new UnauthorizedAccessException("Unauthorized: Cannot access another user's workflow.");
+            }
+
+            if (string.IsNullOrEmpty(instance.ContextJson))
+                return null;
+
+            return JsonSerializer.Deserialize<WorkflowContext>(instance.ContextJson, JsonOptions);
+        }
+
         private static WorkflowContext InitializeNewWorkflow(
             string objective,
             Guid requesterId,
@@ -487,6 +504,7 @@ namespace Procura.API.AI.Orchestration
                 RequesterId = requesterId,
                 RequesterRole = requesterRole,
                 ExistingRequestId = existingRequestId,
+                ProcurementRequestId = existingRequestId,
                 CurrentStage = WorkflowStage.PROCUREMENT_REQUEST,
                 Status = WorkflowStatus.IN_PROGRESS,
                 Plan = WorkflowPlan.CreateDefaultPlan()

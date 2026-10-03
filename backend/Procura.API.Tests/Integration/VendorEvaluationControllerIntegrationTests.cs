@@ -139,11 +139,26 @@ namespace Procura.API.Tests.Integration
             Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         }
 
-        // VE-INT-06: MANAGER can delete successfully
+        // VE-INT-06: ADMIN can delete successfully (MANAGER no longer has delete access)
         [Fact]
-        public async Task DeleteEvaluation_AsManager_Returns204()
+        public async Task DeleteEvaluation_AsAdmin_Returns204()
         {
             var poToken = await RegisterAndLoginAsync($"po3-{Guid.NewGuid()}@test.com", SystemRole.PROCUREMENT_OFFICER);
+            var id = await CreateEvaluationAsync(poToken);
+
+            var adminToken = await RegisterAndLoginAsync($"admin2-{Guid.NewGuid()}@test.com", SystemRole.ADMIN);
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+            var response = await _client.DeleteAsync($"/api/vendor-evaluations/{id}");
+
+            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        }
+
+        // VE-INT-06b: MANAGER is now correctly blocked from deleting (role removed from delete policy)
+        [Fact]
+        public async Task DeleteEvaluation_AsManager_Returns403()
+        {
+            var poToken = await RegisterAndLoginAsync($"po3b-{Guid.NewGuid()}@test.com", SystemRole.PROCUREMENT_OFFICER);
             var id = await CreateEvaluationAsync(poToken);
 
             var managerToken = await RegisterAndLoginAsync($"mgr-{Guid.NewGuid()}@test.com", SystemRole.MANAGER);
@@ -151,14 +166,13 @@ namespace Procura.API.Tests.Integration
 
             var response = await _client.DeleteAsync($"/api/vendor-evaluations/{id}");
 
-            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         }
-
         // VE-INT-07: fetching a nonexistent evaluation returns 404 through the real pipeline
         [Fact]
         public async Task GetById_WhenNotFound_Returns404()
         {
-            var token = await RegisterAndLoginAsync($"mgr2-{Guid.NewGuid()}@test.com", SystemRole.MANAGER);
+            var token = await RegisterAndLoginAsync($"po5-{Guid.NewGuid()}@test.com", SystemRole.PROCUREMENT_OFFICER);
             _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             var response = await _client.GetAsync($"/api/vendor-evaluations/{Guid.NewGuid()}");

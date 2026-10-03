@@ -40,6 +40,7 @@ public class VendorEvaluationService : IVendorEvaluationService
 
     public async Task<ProcurementEvaluationSummaryDto> EvaluateAndRankCandidateVendorsAsync(
         EvaluateVendorsRequestDto request,
+        bool generatedByAgent = false,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Starting evaluation for ProcurementRequest {ProcurementRequestId}",
@@ -81,14 +82,31 @@ public class VendorEvaluationService : IVendorEvaluationService
             }
 
             // 2. Map stored VendorQuote entities into CandidateVendorMetricDto objects expected by VendorScoringEngine
-            candidateMetrics = quotes.Select(q => new CandidateVendorMetricDto
+            candidateMetrics = quotes.Select(q =>
             {
-                VendorId = q.VendorId,
-                QuotedPrice = q.QuotedPrice,
-                EstimatedDeliveryDays = q.EstimatedDeliveryDays,
-                ReliabilityRating = q.ReliabilityRating,
-                IsComplianceApproved = q.IsComplianceApproved,
-                KnownRisks = !string.IsNullOrWhiteSpace(q.Notes) ? new List<string> { q.Notes } : new List<string>()
+                var risks = new List<string>();
+                if (!string.IsNullOrWhiteSpace(q.Notes))
+                {
+                    var lower = q.Notes.ToLowerInvariant();
+                    if (lower.Contains("risk") || lower.Contains("warning") || lower.Contains("caution") ||
+                        lower.Contains("penalty") || lower.Contains("volatil") || lower.Contains("bottleneck") ||
+                        lower.Contains("dispute") || lower.Contains("restriction"))
+                    {
+                        risks.Add(q.Notes.Trim());
+                    }
+                }
+
+                return new CandidateVendorMetricDto
+                {
+                    VendorId = q.VendorId,
+                    VendorName = !string.IsNullOrWhiteSpace(q.VendorName) ? q.VendorName : null,
+                    QuotedPrice = q.QuotedPrice,
+                    EstimatedDeliveryDays = q.EstimatedDeliveryDays,
+                    ReliabilityRating = q.ReliabilityRating,
+                    IsComplianceApproved = q.IsComplianceApproved,
+                    Notes = q.Notes,
+                    KnownRisks = risks
+                };
             }).ToList();
         }
 
@@ -155,7 +173,7 @@ public class VendorEvaluationService : IVendorEvaluationService
                 OverallScore = result.OverallScore,
                 Reasoning = result.Reasoning,
                 RiskFlags = result.RiskFlags,
-                GeneratedByAgent = true,
+                GeneratedByAgent = generatedByAgent,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 CriterionScores = result.CriterionScores.Select(c => new VendorEvaluationCriterionScore
@@ -181,9 +199,11 @@ public class VendorEvaluationService : IVendorEvaluationService
         // 9. Build recommendation summary response
         var responseDtos = evaluationEntities.Select(MapToResponseDto).ToList();
         var topRecommendation = responseDtos.FirstOrDefault();
+        var topMetric = topRecommendation != null ? candidateMetrics.FirstOrDefault(c => c.VendorId == topRecommendation.VendorId) : null;
+        var topName = !string.IsNullOrWhiteSpace(topMetric?.VendorName) ? topMetric.VendorName : (topRecommendation != null ? $"Vendor {topRecommendation.VendorId}" : "");
 
         string summaryText = topRecommendation != null
-            ? $"Top recommended candidate is Vendor {topRecommendation.VendorId} (Rank #1) with an overall score of {topRecommendation.OverallScore:F2}/100. Evaluated {evaluationEntities.Count} candidate(s) in total."
+            ? $"{topName} is the top recommended vendor (Rank #1) with an overall score of {topRecommendation.OverallScore:F2}/100. Evaluated {evaluationEntities.Count} candidate(s) in total."
             : "No candidates evaluated.";
 
         return new ProcurementEvaluationSummaryDto

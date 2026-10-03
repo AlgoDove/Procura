@@ -4,6 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { processAiWorkflow, getAiWorkflow } from '../api/endpoints';
 import type { WorkflowProcessResponse, WorkflowStatus, StepStatus } from '../types/api';
 import { formatStatus, formatTotal } from '../utils/formatters';
+import { getWorkflowForRequest } from '../api/endpoints';
+import { useQuery } from '@tanstack/react-query';
 import styles from './AiWorkflowPage.module.css';
 
 const TERMINAL_STATUSES: WorkflowStatus[] = [
@@ -49,6 +51,23 @@ export default function AiWorkflowPage() {
     return () => stopPolling();
   }, []);
 
+  const { data: existingWorkflow, isLoading: isLoadingExisting } = useQuery({
+    queryKey: ['workflow-for-request', requestId],
+    queryFn: () => getWorkflowForRequest(requestId!),
+    enabled: !!requestId,
+    retry: false,
+  });
+
+  useEffect(() => {
+  if (existingWorkflow && !workflow) {
+    setWorkflow(existingWorkflow);
+    // If it's still actively in progress, resume polling
+    if (!TERMINAL_STATUSES.includes(existingWorkflow.status) && existingWorkflow.status !== 'NEEDS_USER_INPUT') {
+      startPolling(existingWorkflow.workflowId);
+    }
+  }
+  }, [existingWorkflow]);
+
   const handleWorkflowUpdate = (data: WorkflowProcessResponse) => {
     setWorkflow(data);
     queryClient.invalidateQueries({ queryKey: ['procurement-request', requestId] });
@@ -88,6 +107,7 @@ export default function AiWorkflowPage() {
       processAiWorkflow({
         objective,
         existingRequestId: requestId,
+        workflowId: existingWorkflow?.workflowId,
       }),
     onSuccess: (data) => {
       setError(null);
@@ -138,6 +158,18 @@ export default function AiWorkflowPage() {
     ? ['The AI service is temporarily unavailable. Please try again in a few moments.']
     : rawErrors;
 
+  if (isLoadingExisting) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.headerRow}>
+           <Link to={`/requests/${requestId}`} className={styles.back}>← Back to Request</Link>
+           <h1 className={styles.heading}>🤖 AI Procurement Assistant</h1>
+        </div>
+        <p>Checking for existing workflow…</p>
+      </div>
+    );
+  }
+  
   return (
     <div className={styles.container}>
       <div className={styles.headerRow}>

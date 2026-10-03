@@ -13,6 +13,7 @@ public interface IVendorEvaluationService
     /// </summary>
     Task<ProcurementEvaluationSummaryDto> EvaluateAndRankCandidateVendorsAsync(
         EvaluateVendorsRequestDto request,
+        bool generatedByAgent = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>

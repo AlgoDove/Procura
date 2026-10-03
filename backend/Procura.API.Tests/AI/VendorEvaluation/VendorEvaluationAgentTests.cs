@@ -76,8 +76,8 @@ namespace Procura.API.Tests.AI.VendorEvaluation
                 EvaluatedAt = DateTime.UtcNow
             };
 
-            _mockEvaluationService.Setup(s => s.EvaluateAndRankCandidateVendorsAsync(It.IsAny<EvaluateVendorsRequestDto>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(expectedSummary);
+            _mockEvaluationService.Setup(s => s.EvaluateAndRankCandidateVendorsAsync(It.IsAny<EvaluateVendorsRequestDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(expectedSummary);
 
             var context = new WorkflowContext
             {
@@ -144,7 +144,7 @@ namespace Procura.API.Tests.AI.VendorEvaluation
             Assert.Equal(AgentExecutionStatus.COMPLETED, result.Status);
             Assert.Contains("Top recommended candidate", result.ExecutionSummary);
             Assert.Contains(context.AuditTrail, a => a.ToolName == "GenerateRecommendationTool" && a.Action == "TOOL_COMPLETED");
-            _mockEvaluationService.Verify(s => s.EvaluateAndRankCandidateVendorsAsync(It.IsAny<EvaluateVendorsRequestDto>(), It.IsAny<CancellationToken>()), Times.Never);
+            _mockEvaluationService.Verify(s => s.EvaluateAndRankCandidateVendorsAsync(It.IsAny<EvaluateVendorsRequestDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
@@ -260,7 +260,7 @@ namespace Procura.API.Tests.AI.VendorEvaluation
                 RecommendationSummary = "No vendor quotes found to evaluate."
             };
 
-            _mockEvaluationService.Setup(s => s.EvaluateAndRankCandidateVendorsAsync(It.IsAny<EvaluateVendorsRequestDto>(), It.IsAny<CancellationToken>()))
+            _mockEvaluationService.Setup(s => s.EvaluateAndRankCandidateVendorsAsync(It.IsAny<EvaluateVendorsRequestDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(emptySummary);
 
             var context = new WorkflowContext
@@ -381,7 +381,7 @@ namespace Procura.API.Tests.AI.VendorEvaluation
             Assert.Equal(AgentExecutionStatus.FAILED, result.Status);
             Assert.Contains(errorMessage, result.ErrorMessages);
             Assert.Contains(context.AuditTrail, a => a.Action == "AGENT_FAILED" && a.Status == "FAILED");
-            _mockEvaluationService.Verify(s => s.EvaluateAndRankCandidateVendorsAsync(It.IsAny<EvaluateVendorsRequestDto>(), It.IsAny<CancellationToken>()), Times.Never);
+            _mockEvaluationService.Verify(s => s.EvaluateAndRankCandidateVendorsAsync(It.IsAny<EvaluateVendorsRequestDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
@@ -413,7 +413,7 @@ namespace Procura.API.Tests.AI.VendorEvaluation
             Assert.Equal(AgentExecutionStatus.FAILED, result.Status);
             Assert.Contains("LLM returned malformed structured data.", result.ErrorMessages);
             Assert.Contains(context.AuditTrail, a => a.Action == "AGENT_FAILED" && a.Status == "FAILED");
-            _mockEvaluationService.Verify(s => s.EvaluateAndRankCandidateVendorsAsync(It.IsAny<EvaluateVendorsRequestDto>(), It.IsAny<CancellationToken>()), Times.Never);
+            _mockEvaluationService.Verify(s => s.EvaluateAndRankCandidateVendorsAsync(It.IsAny<EvaluateVendorsRequestDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
         }
     }
 }

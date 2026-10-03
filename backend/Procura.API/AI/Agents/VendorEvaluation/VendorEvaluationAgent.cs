@@ -245,6 +245,19 @@ INTENT DIRECTIVE:
 - Set Action to ""SCORE_VENDORS"" when the user wants to score, rank, evaluate, or re-evaluate candidate vendors or submitted vendor quotes.
 - Set Action to ""GET_RECOMMENDATION"" when the user wants to view, show, fetch, or inspect existing evaluation results/recommendations.
 
+EVALUATION PRIORITY / WEIGHTS EXTRACTION:
+- If the user's message includes an explicit priority annotation like ""(Evaluation priority: ... Price X%, Delivery Y%, Reliability Z%, Compliance W%)"", extract those exact percentages into CustomWeights as decimal fractions (e.g. 55% becomes 0.55).
+- CustomWeights MUST be a JSON ARRAY of objects, never an object/dictionary. Each array element must have exactly two fields: ""Criterion"" (one of: PRICE, DELIVERY_TIME, RELIABILITY, COMPLIANCE) and ""Weight"" (a decimal between 0 and 1). Example of the CORRECT shape:
+  ""CustomWeights"": [
+    { ""Criterion"": ""PRICE"", ""Weight"": 0.35 },
+    { ""Criterion"": ""DELIVERY_TIME"", ""Weight"": 0.25 },
+    { ""Criterion"": ""RELIABILITY"", ""Weight"": 0.25 },
+    { ""Criterion"": ""COMPLIANCE"", ""Weight"": 0.15 }
+  ]
+  This is WRONG and must never be used: ""CustomWeights"": { ""PRICE"": 0.35, ""DELIVERY_TIME"": 0.25 }
+- If no explicit priority annotation is present, leave CustomWeights as null and the system will apply default balanced weighting.
+- Never invent weights that were not stated or derivable from the message.
+
 DATABASE QUOTES & EVALUATION RULES:
 - If the user asks to evaluate submitted quotes or evaluate vendors for the current procurement request without detailing all numbers in the prompt, set HasSufficientInformation to TRUE and CandidateVendors to null or empty list. The system tool will automatically pull all submitted vendor quotes from the database!
 - Only set HasSufficientInformation to false if the user request is completely unrelated to vendor evaluation.
@@ -260,7 +273,7 @@ OUTPUT JSON SCHEMA:
   ""ProcurementRequestId"": ""<guid if mentioned, else null>"",
   ""EstimatedBudget"": null,
   ""RequiredDeliveryDays"": null,
-  ""CustomWeights"": null,
+  ""CustomWeights"": [ { ""Criterion"": ""PRICE"", ""Weight"": 0.35 } ] | null,
   ""CandidateVendors"": null,
   ""HasSufficientInformation"": true,
   ""MissingInformationReasons"": [],

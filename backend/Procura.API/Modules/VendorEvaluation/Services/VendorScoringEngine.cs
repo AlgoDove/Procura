@@ -56,7 +56,7 @@ public class VendorScoringEngine : IVendorScoringEngine
             if (estimatedBudget.HasValue && candidate.QuotedPrice > estimatedBudget.Value)
             {
                 var overBudgetPercent = Math.Round(((candidate.QuotedPrice - estimatedBudget.Value) / estimatedBudget.Value) * 100m, 1);
-                riskFlags.Add($"PRICE_EXCEEDS_BUDGET: Quoted price of {candidate.QuotedPrice:C} exceeds estimated budget of {estimatedBudget.Value:C} by {overBudgetPercent}%.");
+                riskFlags.Add($"Quoted price of {candidate.QuotedPrice:C} exceeds estimated budget of {estimatedBudget.Value:C} by {overBudgetPercent}%.");
             }
             criterionScores.Add(new VendorEvaluationCriterionScore
             {
@@ -80,7 +80,7 @@ public class VendorScoringEngine : IVendorScoringEngine
                 {
                     int delayDays = candidate.EstimatedDeliveryDays - requiredDeliveryDays.Value;
                     deliveryScore = Math.Max(0m, Math.Round(80m - (delayDays * 10m), 2));
-                    riskFlags.Add($"DELIVERY_EXCEEDS_REQUIREMENT: Estimated delivery of {candidate.EstimatedDeliveryDays} days exceeds required timeline of {requiredDeliveryDays.Value} days by {delayDays} days.");
+                    riskFlags.Add($"Estimated delivery of {candidate.EstimatedDeliveryDays} days exceeds required timeline of {requiredDeliveryDays.Value} days by {delayDays} day(s).");
                 }
             }
             else
@@ -107,7 +107,7 @@ public class VendorScoringEngine : IVendorScoringEngine
             decimal reliabilityScore = Math.Clamp(Math.Round(rawReliability, 2), 0m, 100m);
             if (reliabilityScore < 60m)
             {
-                riskFlags.Add($"LOW_RELIABILITY_SCORE: Reliability rating is {reliabilityScore}%, which is below the minimum recommended 60% threshold.");
+                riskFlags.Add($"Reliability rating is {reliabilityScore}%, which is below the minimum recommended 60% threshold.");
             }
             criterionScores.Add(new VendorEvaluationCriterionScore
             {
@@ -121,7 +121,7 @@ public class VendorScoringEngine : IVendorScoringEngine
             decimal complianceScore = candidate.IsComplianceApproved ? 100m : 0m;
             if (!candidate.IsComplianceApproved)
             {
-                riskFlags.Add("NON_COMPLIANT_VENDOR: Vendor is not compliance-approved by the Compliance team.");
+                riskFlags.Add("Vendor is not compliance-approved by the Compliance team.");
             }
             criterionScores.Add(new VendorEvaluationCriterionScore
             {
@@ -195,48 +195,70 @@ public class VendorScoringEngine : IVendorScoringEngine
         var sb = new StringBuilder();
         var vendorLabel = string.IsNullOrWhiteSpace(candidate.VendorName) ? $"Vendor {candidate.VendorId}" : candidate.VendorName;
 
-        sb.Append($"{vendorLabel} achieved an overall evaluation score of {overallScore:F2}/100. ");
+        sb.Append($"{vendorLabel} achieved an overall evaluation score of {overallScore:F1}/100. ");
 
         var priceCrit = criteria.FirstOrDefault(c => c.CriterionName == EvaluationCriterionType.PRICE);
         var deliveryCrit = criteria.FirstOrDefault(c => c.CriterionName == EvaluationCriterionType.DELIVERY_TIME);
         var reliabilityCrit = criteria.FirstOrDefault(c => c.CriterionName == EvaluationCriterionType.RELIABILITY);
         var complianceCrit = criteria.FirstOrDefault(c => c.CriterionName == EvaluationCriterionType.COMPLIANCE);
 
+        // Price analysis
         if (candidate.QuotedPrice == minPrice && minPrice > 0)
         {
-            sb.Append("Offered the most competitive pricing among candidates. ");
+            sb.Append($"Offered the most competitive pricing among all candidates at {candidate.QuotedPrice:C}. ");
         }
         else if (priceCrit != null)
         {
-            sb.Append($"Pricing score: {priceCrit.Score:F1}/100 ({candidate.QuotedPrice:C}). ");
+            sb.Append($"Quoted {candidate.QuotedPrice:C} (Price score: {priceCrit.Score:F0}/100). ");
         }
 
-        if (deliveryCrit != null)
+        // Reliability analysis
+        if (candidate.ReliabilityRating >= 90)
         {
-            sb.Append($"Delivery timeline score: {deliveryCrit.Score:F1}/100 ({candidate.EstimatedDeliveryDays} days). ");
+            sb.Append($"Holds an outstanding reliability rating of {candidate.ReliabilityRating:F0}/100. ");
         }
-
-        if (reliabilityCrit != null)
+        else if (candidate.ReliabilityRating >= 75)
         {
-            sb.Append($"Reliability rating score: {reliabilityCrit.Score:F1}/100. ");
+            sb.Append($"Maintains a solid reliability rating of {candidate.ReliabilityRating:F0}/100. ");
+        }
+        else
+        {
+            sb.Append($"Has a moderate reliability rating of {candidate.ReliabilityRating:F0}/100. ");
         }
 
+        // Delivery & Compliance
+        sb.Append($"Estimated fulfillment timeline is {candidate.EstimatedDeliveryDays} day(s). ");
         if (candidate.IsComplianceApproved)
         {
-            sb.Append("Compliance status is verified and approved. ");
+            sb.Append("Compliance standards are fully verified. ");
         }
         else
         {
-            sb.Append("Vendor is NOT compliance-approved. ");
+            sb.Append("⚠️ Compliance verification is required prior to contract award. ");
         }
 
-        if (risks.Count > 0)
+        // Positive terms & value-add notes (e.g. warranty, on-site support)
+        if (!string.IsNullOrWhiteSpace(candidate.Notes))
         {
-            sb.Append($"Identified {risks.Count} risk flag(s) requiring consideration.");
+            var cleanNote = candidate.Notes.Trim();
+            if (!risks.Any(r => r.Equals(cleanNote, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!cleanNote.EndsWith('.') && !cleanNote.EndsWith('!'))
+                    cleanNote += ".";
+                sb.Append($"Value-add terms: {cleanNote} ");
+            }
         }
-        else
+
+        // Specific Risks (excluding duplicate compliance note if already stated)
+        var otherRisks = risks.Where(r => !r.Contains("compliance-approved", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (otherRisks.Count > 0)
         {
-            sb.Append("No immediate risk flags identified.");
+            sb.Append("Key considerations: " + string.Join("; ", otherRisks) + ".");
+        }
+        else if (candidate.IsComplianceApproved)
+        {
+            sb.Append("No operational or budgetary risk flags identified.");
         }
 
         return sb.ToString();

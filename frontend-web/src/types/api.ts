@@ -208,3 +208,86 @@ export interface CreateVendorDto {
 }
 
 export type UpdateVendorDto = CreateVendorDto;
+
+// ─── Vendor Evaluation & Quotes DTOs ───────────────────────────────────────
+
+export type EvaluationCriterionType = 'PRICE' | 'DELIVERY_TIME' | 'RELIABILITY' | 'COMPLIANCE';
+
+export interface CreateVendorQuoteDto {
+  procurementRequestId: string;
+  vendorId: string;
+  vendorName: string;
+  quotedPrice: number;
+  estimatedDeliveryDays: number;
+  reliabilityRating: number;
+  isComplianceApproved: boolean;
+  notes?: string;
+}
+
+export interface VendorQuoteResponseDto {
+  id: string;
+  procurementRequestId: string;
+  vendorId: string;
+  vendorName: string;
+  quotedPrice: number;
+  estimatedDeliveryDays: number;
+  reliabilityRating: number;
+  isComplianceApproved: boolean;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface CriterionScoreResponseDto {
+  id: string;
+  vendorEvaluationId: string;
+  criterionName: EvaluationCriterionType;
+  score: number;
+  weight: number;
+}
+
+export interface VendorEvaluationResponseDto {
+  id: string;
+  procurementRequestId: string;
+  vendorId: string;
+  rank: number;
+  overallScore: number;
+  reasoning: string;
+  riskFlags: string[];
+  generatedByAgent: boolean;
+  createdAt: string;
+  updatedAt: string;
+  criterionScores: CriterionScoreResponseDto[];
+}
+
+export interface CandidateVendorMetricDto {
+  vendorId: string;
+  vendorName?: string;
+  quotedPrice: number;
+  estimatedDeliveryDays: number;
+  reliabilityRating: number;
+  isComplianceApproved: boolean;
+  knownRisks?: string[];
+}
+
+export interface CriterionWeightConfigDto {
+  criterion: EvaluationCriterionType;
+  weight: number;
+}
+
+export interface EvaluateVendorsRequestDto {
+  procurementRequestId: string;
+  estimatedBudget?: number;
+  requiredDeliveryDays?: number;
+  customWeights?: CriterionWeightConfigDto[];
+  candidateVendors?: CandidateVendorMetricDto[];
+}
+
+export interface ProcurementEvaluationSummaryDto {
+  procurementRequestId: string;
+  totalCandidatesEvaluated: number;
+  topRecommendedVendorId?: string;
+  topScore?: number;
+  recommendationSummary: string;
+  evaluatedAt: string;
+  rankedEvaluations: VendorEvaluationResponseDto[];
+}

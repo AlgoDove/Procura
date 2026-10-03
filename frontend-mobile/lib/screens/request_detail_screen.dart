@@ -8,6 +8,7 @@ import '../utils/formatters.dart';
 import 'edit_request_screen.dart';
 import 'ai_workflow_screen.dart';
 import 'widgets/approval_workflow_card.dart';
+import 'widgets/vendor_recommendation_card.dart';
 
 class RequestDetailScreen extends StatefulWidget {
   final String requestId;
@@ -19,6 +20,7 @@ class RequestDetailScreen extends StatefulWidget {
 
 class _RequestDetailScreenState extends State<RequestDetailScreen> {
   ProcurementRequestResponse? _request;
+  ProcurementEvaluationSummaryDto? _evaluationSummary;
   bool _loading = true;
   String? _error;
   String? _actionError;
@@ -45,7 +47,27 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final r = await ApiClient.dio.get<Map<String, dynamic>>('/api/procurement-requests/${widget.requestId}');
-      setState(() { _request = ProcurementRequestResponse.fromJson(r.data!); });
+      final req = ProcurementRequestResponse.fromJson(r.data!);
+      ProcurementEvaluationSummaryDto? evalSummary;
+
+      const evalStatuses = {'UNDER_EVALUATION', 'PENDING_APPROVAL', 'APPROVED', 'COMPLETED'};
+      if (evalStatuses.contains(req.status)) {
+        try {
+          final evalRes = await ApiClient.dio.get<Map<String, dynamic>>(
+            '/api/vendor-evaluations/${widget.requestId}/recommendation',
+          );
+          if (evalRes.data != null) {
+            evalSummary = ProcurementEvaluationSummaryDto.fromJson(evalRes.data!);
+          }
+        } catch (_) {
+          // 404 is normal if not evaluated yet
+        }
+      }
+
+      setState(() {
+        _request = req;
+        _evaluationSummary = evalSummary;
+      });
     } catch (_) {
       setState(() { _error = 'Request not found or access denied.'; });
     } finally {
@@ -232,6 +254,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             ),
           ),
         )),
+
+        // Vendor Evaluation & Recommendation (Status-Gated)
+        VendorRecommendationCard(
+          summary: _evaluationSummary,
+          requestStatus: r.status,
+          userRole: role,
+        ),
 
         // Approval Workflow Management
         const SizedBox(height: 12),
