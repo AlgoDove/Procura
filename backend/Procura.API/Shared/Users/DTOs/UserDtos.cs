@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace Procura.API.Shared.Users.DTOs
 {
@@ -15,6 +16,7 @@ namespace Procura.API.Shared.Users.DTOs
 
     public class UpdateUserRoleDto
     {
+        [Required]
         public string Role { get; set; } = string.Empty;
     }
 }

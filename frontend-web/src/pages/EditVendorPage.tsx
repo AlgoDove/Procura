@@ -50,7 +50,37 @@ export default function EditVendorPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    mutate({ name, contactEmail, contactPhone: contactPhone || undefined, address: address || undefined, category, notes: notes || undefined });
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setFormError('Vendor name is required.');
+      return;
+    }
+
+    const trimmedCategory = category.trim();
+    if (!trimmedCategory) {
+      setFormError('Category is required.');
+      return;
+    }
+
+    const trimmedEmail = contactEmail.trim();
+    if (!trimmedEmail) {
+      setFormError('Contact email is required.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setFormError('Please enter a valid contact email address.');
+      return;
+    }
+
+    mutate({
+      name: trimmedName,
+      contactEmail: trimmedEmail,
+      contactPhone: contactPhone.trim() || undefined,
+      address: address.trim() || undefined,
+      category: trimmedCategory,
+      notes: notes.trim() || undefined,
+    });
   };
 
   if (isLoading) return <p>Loading…</p>;

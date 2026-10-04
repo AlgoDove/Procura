@@ -63,6 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
     required String hint,
     bool obscureText = false,
     TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
               borderSide: const BorderSide(color: Color(0xFF1E3A5F), width: 2),
             ),
           ),
-          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+          validator: validator ?? ((v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
         ),
       ],
     );
@@ -127,6 +128,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _emailController,
                     hint: 'e.g. employee@procura.com',
                     keyboardType: TextInputType.emailAddress,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())) {
+                        return 'Enter a valid email address';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   
@@ -135,6 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _passwordController,
                     hint: 'Enter your password',
                     obscureText: true,
+                    validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
                   ),
                   
                   if (_error != null) ...[

@@ -16,9 +16,24 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('Email is required.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (!password) {
+      setError('Password is required.');
+      return;
+    }
+
     setLoading(true);
     try {
-      const { token } = await loginApi({ email, password });
+      const { token } = await loginApi({ email: trimmedEmail, password });
       login(token);
       navigate('/', { replace: true });
     } catch (err: unknown) {

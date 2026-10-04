@@ -176,6 +176,11 @@ namespace Procura.API.Modules.ProcurementRequest.Controllers
         public async Task<IActionResult> ProcessAiWorkflow([FromBody] ProcessProcurementAiRequestDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (string.IsNullOrWhiteSpace(dto.Objective))
+            {
+                ModelState.AddModelError(nameof(dto.Objective), "Procurement objective cannot be empty or whitespace.");
+                return BadRequest(ModelState);
+            }
 
             var context = await _orchestrator.ProcessWorkflowAsync(
                 dto.Objective,

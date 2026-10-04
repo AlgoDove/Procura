@@ -5,13 +5,13 @@ namespace Procura.API.Shared.Authentication
 {
     public class RegisterDto
     {
-        [Required]
+        [Required, StringLength(100, MinimumLength = 1)]
         public string FirstName { get; set; } = string.Empty;
-        [Required]
+        [Required, StringLength(100, MinimumLength = 1)]
         public string LastName { get; set; } = string.Empty;
-        [Required, EmailAddress]
+        [Required, EmailAddress, StringLength(150)]
         public string Email { get; set; } = string.Empty;
-        [Required]
+        [Required, StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters.")]
         public string Password { get; set; } = string.Empty;
     }
 

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../services/api_client.dart';
 import '../models/api_models.dart';
 import '../utils/formatters.dart';
@@ -58,13 +60,22 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
   }
 
   Future<void> _startWorkflow() async {
-    if (_objectiveController.text.trim().isEmpty) return;
+    final text = _objectiveController.text.trim();
+    if (text.isEmpty) {
+      setState(() => _error = 'Please describe what you need to procure.');
+      return;
+    }
+    if (text.length > 4000) {
+      setState(() => _error = 'Objective cannot exceed 4000 characters.');
+      return;
+    }
+
     setState(() { _starting = true; _error = null; });
     try {
       final r = await ApiClient.dio.post<Map<String, dynamic>>(
         '/api/procurement-requests/ai/process',
         data: ProcessAiRequest(
-          objective: _objectiveController.text.trim(),
+          objective: text,
           existingRequestId: widget.requestId,
         ).toJson(),
       );
@@ -81,13 +92,22 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
   }
 
   Future<void> _continueWorkflow() async {
-    if (_clarificationController.text.trim().isEmpty) return;
+    final answer = _clarificationController.text.trim();
+    if (answer.isEmpty) {
+      setState(() => _error = 'Please provide an answer before submitting.');
+      return;
+    }
+    if (answer.length > 4000) {
+      setState(() => _error = 'Answer cannot exceed 4000 characters.');
+      return;
+    }
+
     setState(() { _continuing = true; _error = null; });
     try {
       final r = await ApiClient.dio.post<Map<String, dynamic>>(
         '/api/procurement-requests/ai/process',
         data: ProcessAiRequest(
-          objective: _clarificationController.text.trim(),
+          objective: answer,
           workflowId: _workflow!.workflowId,
           existingRequestId: _workflow?.procurementRequestId ?? widget.requestId,
         ).toJson(),
@@ -109,6 +129,9 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    final isEmployee = user?.role == 'EMPLOYEE';
+
     return Scaffold(
       appBar: AppBar(title: const Text('🤖 AI Assistant')),
       body: ListView(
@@ -248,48 +271,50 @@ class _AiWorkflowScreenState extends State<AiWorkflowScreen> {
               const SizedBox(height: 8),
             ],
 
-            if (_workflow!.plan.steps.isNotEmpty) ...[
-              const Text('Workflow Plan', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              ..._workflow!.plan.steps.map((step) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: _stepIcon(step.status),
-                title: Text(step.agentName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(step.objective, style: const TextStyle(fontSize: 12)),
-                    if (step.outcomeSummary != null)
-                      Text(step.outcomeSummary!, style: TextStyle(fontSize: 12, color: const Color(0xFF27AE60))),
-                  ],
-                ),
-                trailing: Text(formatStatus(step.status), style: TextStyle(fontSize: 11, color: _stepColor(step.status))),
-              )),
-              const SizedBox(height: 8),
-            ],
+            if (!isEmployee) ...[
+              if (_workflow!.plan.steps.isNotEmpty) ...[
+                const Text('Workflow Plan (Internal)', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                ..._workflow!.plan.steps.map((step) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: _stepIcon(step.status),
+                  title: Text(step.agentName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(step.objective, style: const TextStyle(fontSize: 12)),
+                      if (step.outcomeSummary != null)
+                        Text(step.outcomeSummary!, style: TextStyle(fontSize: 12, color: const Color(0xFF27AE60))),
+                    ],
+                  ),
+                  trailing: Text(formatStatus(step.status), style: TextStyle(fontSize: 11, color: _stepColor(step.status))),
+                )),
+                const SizedBox(height: 8),
+              ],
 
-            if (_workflow!.auditTrail.isNotEmpty) ...[
-              const Text('Audit Trail', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  itemCount: _workflow!.auditTrail.length,
-                  itemBuilder: (_, i) {
-                    final e = _workflow!.auditTrail[i];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 1),
-                      child: Row(
-                        children: [
-                          Text(e.timestamp.split('T')[1].split('.')[0], style: const TextStyle(fontSize: 10, color: Colors.black45, fontFamily: 'monospace')),
-                          const SizedBox(width: 4),
-                          Expanded(child: Text('${e.actor}: ${e.action}', style: const TextStyle(fontSize: 11))),
-                        ],
-                      ),
-                    );
-                  },
+              if (_workflow!.auditTrail.isNotEmpty) ...[
+                const Text('Audit Trail (Internal)', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: 200,
+                  child: ListView.builder(
+                    itemCount: _workflow!.auditTrail.length,
+                    itemBuilder: (_, i) {
+                      final e = _workflow!.auditTrail[i];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 1),
+                        child: Row(
+                          children: [
+                            Text(e.timestamp.split('T')[1].split('.')[0], style: const TextStyle(fontSize: 10, color: Colors.black45, fontFamily: 'monospace')),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text('${e.actor}: ${e.action}', style: const TextStyle(fontSize: 11))),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
+              ],
             ],
           ],
         ],

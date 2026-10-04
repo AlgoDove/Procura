@@ -1,10 +1,21 @@
 import axios from 'axios';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string;
+const getApiBaseUrl = (): string => {
+  const envUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+  if (envUrl) {
+    return envUrl;
+  }
+  if (import.meta.env.DEV) {
+    return 'http://localhost:5071';
+  }
+  if (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes(':5173')) {
+    return window.location.origin;
+  }
+  throw new Error('Missing VITE_API_BASE_URL environment variable in production configuration.');
+};
 
-if (!apiBaseUrl) {
-  throw new Error('VITE_API_BASE_URL is not set. Create a .env.local file.');
-}
+const apiBaseUrl = getApiBaseUrl();
+
 
 const apiClient = axios.create({
   baseURL: apiBaseUrl,

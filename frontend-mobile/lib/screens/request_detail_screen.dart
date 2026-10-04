@@ -224,6 +224,53 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           ],
         ),
 
+        // Employee Business Status Guidance
+        if (!isDraft) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _statusColors[r.status]?.withValues(alpha: 0.1) ?? Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: _statusColors[r.status]?.withValues(alpha: 0.3) ?? Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  r.status == 'APPROVED' || r.status == 'COMPLETED'
+                      ? Icons.check_circle_outline
+                      : (r.status == 'REJECTED' ? Icons.cancel_outlined : (r.status == 'REVISION_REQUESTED' ? Icons.error_outline : Icons.info_outline)),
+                  color: _statusColors[r.status] ?? Colors.grey,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    r.status == 'SUBMITTED'
+                        ? 'Your request has been submitted and is currently queued for procurement team review.'
+                        : (r.status == 'UNDER_EVALUATION'
+                            ? 'The procurement team is actively reviewing quotes and evaluating vendors.'
+                            : (r.status == 'PENDING_APPROVAL'
+                                ? 'Vendor evaluation has been completed. This request is now awaiting manager approval.'
+                                : (r.status == 'REVISION_REQUESTED'
+                                    ? 'A manager has requested changes. Please review any decision comments below, then click "Return to Draft" to make edits.'
+                                    : (r.status == 'APPROVED'
+                                        ? 'This procurement request has been approved by management.'
+                                        : (r.status == 'REJECTED'
+                                            ? 'This procurement request was not approved.'
+                                            : 'Procurement orders and fulfillment have been finalized.'))))),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _statusColors[r.status] ?? Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         const Divider(),
         _detail('Request Number', r.requestNumber),
         _detail('Priority', formatStatus(r.priority)),
@@ -262,12 +309,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           userRole: role,
         ),
 
-        // Approval Workflow Management
-        const SizedBox(height: 12),
-        ApprovalWorkflowCard(
-          requestId: widget.requestId,
-          onStatusChanged: _load,
-        ),
+        // Approval Workflow Management (shown only for submitted/reviewed requests, never for unsubmitted drafts)
+        if (!isDraft) ...[
+          const SizedBox(height: 12),
+          ApprovalWorkflowCard(
+            requestId: widget.requestId,
+            onStatusChanged: _load,
+          ),
+        ],
       ],
     );
   }

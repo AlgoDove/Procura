@@ -16,9 +16,49 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const trimmedFirstName = firstName.trim();
+    if (!trimmedFirstName) {
+      setError('First name is required.');
+      return;
+    }
+    if (trimmedFirstName.length > 100) {
+      setError('First name cannot exceed 100 characters.');
+      return;
+    }
+
+    const trimmedLastName = lastName.trim();
+    if (!trimmedLastName) {
+      setError('Last name is required.');
+      return;
+    }
+    if (trimmedLastName.length > 100) {
+      setError('Last name cannot exceed 100 characters.');
+      return;
+    }
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('Email is required.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!password) {
+      setError('Password is required.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await registerApi({ firstName, lastName, email, password });
+      await registerApi({ firstName: trimmedFirstName, lastName: trimmedLastName, email: trimmedEmail, password });
       // Registration always assigns EMPLOYEE.
       // Redirect to login so user signs in with their new credentials.
       navigate('/login', { state: { registered: true } });

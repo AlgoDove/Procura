@@ -8,6 +8,7 @@ namespace Procura.API.AI.DTOs
     public class ProcessProcurementAiRequestDto
     {
         [Required(ErrorMessage = "Procurement objective or description is required.")]
+        [StringLength(4000, MinimumLength = 1, ErrorMessage = "Objective must be between 1 and 4000 characters.")]
         public string Objective { get; set; } = string.Empty;
 
         public Guid? ExistingRequestId { get; set; }

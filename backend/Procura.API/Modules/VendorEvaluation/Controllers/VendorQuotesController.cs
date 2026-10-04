@@ -22,6 +22,7 @@ public class VendorQuotesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SubmitQuote([FromBody] CreateVendorQuoteDto dto, CancellationToken cancellationToken)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
         var quote = await _quoteService.SubmitQuoteAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetQuoteById), new { id = quote.Id }, quote);
     }

@@ -158,6 +158,34 @@ export default function AiWorkflowPage() {
     ? ['The AI service is temporarily unavailable. Please try again in a few moments.']
     : rawErrors;
 
+  const handleStartWorkflow = () => {
+    const trimmed = objective.trim();
+    if (!trimmed) {
+      setError('Please describe what you need to procure or update.');
+      return;
+    }
+    if (trimmed.length > 4000) {
+      setError('Objective cannot exceed 4000 characters.');
+      return;
+    }
+    setError(null);
+    startWorkflow();
+  };
+
+  const handleContinueWorkflow = () => {
+    const trimmed = clarificationAnswer.trim();
+    if (!trimmed) {
+      setError('Please provide an answer before submitting.');
+      return;
+    }
+    if (trimmed.length > 4000) {
+      setError('Answer cannot exceed 4000 characters.');
+      return;
+    }
+    setError(null);
+    continueWorkflow();
+  };
+
   if (isLoadingExisting) {
     return (
       <div className={styles.container}>
@@ -202,7 +230,7 @@ export default function AiWorkflowPage() {
             <button
               type="button"
               className={styles.btnPrimary}
-              onClick={() => startWorkflow()}
+              onClick={handleStartWorkflow}
               disabled={isStarting || !objective.trim()}
             >
               {isStarting ? 'Starting AI workflow…' : 'Start AI Workflow'}
@@ -258,7 +286,7 @@ export default function AiWorkflowPage() {
                 <button
                   type="button"
                   className={styles.btnPrimary}
-                  onClick={() => continueWorkflow()}
+                  onClick={handleContinueWorkflow}
                   disabled={isContinuing || !clarificationAnswer.trim()}
                 >
                   {isContinuing ? 'Sending…' : 'Send Answer'}

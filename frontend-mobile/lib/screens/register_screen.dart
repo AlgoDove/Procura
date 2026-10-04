@@ -129,6 +129,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 label: 'First name',
                 controller: _firstNameController,
                 hint: 'e.g. John',
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'First name is required';
+                  if (v.trim().length > 100) return 'First name cannot exceed 100 characters';
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
               
@@ -136,6 +141,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 label: 'Last name',
                 controller: _lastNameController,
                 hint: 'e.g. Doe',
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Last name is required';
+                  if (v.trim().length > 100) return 'Last name cannot exceed 100 characters';
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
               
@@ -144,6 +154,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _emailController,
                 hint: 'e.g. employee@procura.com',
                 keyboardType: TextInputType.emailAddress,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Email is required';
+                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())) {
+                    return 'Enter a valid email address';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
               

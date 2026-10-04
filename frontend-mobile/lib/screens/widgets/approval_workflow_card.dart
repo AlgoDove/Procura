@@ -22,7 +22,6 @@ class ApprovalWorkflowCard extends StatefulWidget {
 class _ApprovalWorkflowCardState extends State<ApprovalWorkflowCard> {
   ApprovalWorkflowResponse? _workflow;
   bool _loading = true;
-  String? _error;
   String? _actionError;
   bool _isProcessing = false;
 
@@ -44,7 +43,6 @@ class _ApprovalWorkflowCardState extends State<ApprovalWorkflowCard> {
   Future<void> _loadWorkflow() async {
     setState(() {
       _loading = true;
-      _error = null;
     });
     try {
       final res = await ApiClient.dio.get<Map<String, dynamic>>(
@@ -59,7 +57,6 @@ class _ApprovalWorkflowCardState extends State<ApprovalWorkflowCard> {
       if (mounted) {
         setState(() {
           _workflow = null;
-          _error = 'No workflow found';
         });
       }
     } finally {
@@ -326,6 +323,7 @@ class _ApprovalWorkflowCardState extends State<ApprovalWorkflowCard> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final isEmployee = user?.role == 'EMPLOYEE';
     final isManager = user?.role == 'MANAGER';
     final isOfficer = user?.role == 'PROCUREMENT_OFFICER';
     final isAdmin = user?.role == 'ADMIN';
@@ -340,37 +338,47 @@ class _ApprovalWorkflowCardState extends State<ApprovalWorkflowCard> {
       );
     }
 
+    // Employees do not initialize approval workflows and should not see the empty card
     if (_workflow == null) {
-      return Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Approval Workflow',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E3A5F),
+      if (isEmployee) {
+        return const SizedBox.shrink();
+      }
+
+      // For Officers, Managers, or Admins who can initialize workflows
+      if (isOfficer || isAdmin || isManager) {
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Approval Workflow',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E3A5F),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'No formal approval workflow has been initialized for this procurement request yet.',
-                style: TextStyle(color: Colors.black54, fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: _isProcessing ? null : _initializeWorkflow,
-                icon: const Icon(Icons.play_arrow),
-                label: Text(_isProcessing ? 'Initializing...' : 'Initialize Approval Workflow'),
-              ),
-            ],
+                const SizedBox(height: 8),
+                const Text(
+                  'No formal approval workflow has been initialized for this procurement request yet.',
+                  style: TextStyle(color: Colors.black54, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: _isProcessing ? null : _initializeWorkflow,
+                  icon: const Icon(Icons.play_arrow),
+                  label: Text(_isProcessing ? 'Initializing...' : 'Initialize Approval Workflow'),
+                ),
+              ],
+            ),
           ),
-        ),
-      );
+        );
+      }
+
+      return const SizedBox.shrink();
     }
 
     final status = _workflow!.currentStatus;
@@ -403,7 +411,7 @@ class _ApprovalWorkflowCardState extends State<ApprovalWorkflowCard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -579,15 +587,16 @@ class _ApprovalWorkflowCardState extends State<ApprovalWorkflowCard> {
                   )),
             ],
 
-            // Full Audit Trail Button
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                icon: const Icon(Icons.history, size: 16),
-                label: const Text('View Full Audit Trail', style: TextStyle(fontSize: 12)),
-                onPressed: _showAuditTrailBottomSheet,
+            // Full Audit Trail Button (Accessible to Management / Officers / Admins)
+            if (!isEmployee)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.history, size: 16),
+                  label: const Text('View Full Audit Trail', style: TextStyle(fontSize: 12)),
+                  onPressed: _showAuditTrailBottomSheet,
+                ),
               ),
-            ),
           ],
         ),
       ),

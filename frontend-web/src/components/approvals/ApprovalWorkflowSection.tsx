@@ -122,7 +122,7 @@ export default function ApprovalWorkflowSection({ requestId }: ApprovalWorkflowS
         <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem' }}>
           No formal approval workflow has been initialized for this procurement request yet.
         </p>
-        {(isOfficer || isAdmin || isManager || user?.role === 'EMPLOYEE') && (
+        {(isOfficer || isAdmin || isManager) && (
           <button
             type="button"
             className={styles.btnSecondary}

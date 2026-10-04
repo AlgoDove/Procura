@@ -146,7 +146,14 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
 
   Future<void> _startAiCreation() async {
     final text = _aiObjectiveController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      setState(() => _aiError = 'Please describe what you need to procure.');
+      return;
+    }
+    if (text.length > 4000) {
+      setState(() => _aiError = 'Objective cannot exceed 4000 characters.');
+      return;
+    }
 
     setState(() {
       _aiLoading = true;
@@ -181,7 +188,15 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
 
   Future<void> _sendClarification() async {
     final answer = _aiClarificationController.text.trim();
-    if (answer.isEmpty || _aiWorkflow == null) return;
+    if (answer.isEmpty) {
+      setState(() => _aiError = 'Please provide an answer before submitting.');
+      return;
+    }
+    if (answer.length > 4000) {
+      setState(() => _aiError = 'Answer cannot exceed 4000 characters.');
+      return;
+    }
+    if (_aiWorkflow == null) return;
 
     setState(() {
       _aiLoading = true;
@@ -243,9 +258,28 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
       setState(() => _manualError = 'At least one item is required.');
       return;
     }
-    if (_items.any((i) => i.itemName.trim().isEmpty)) {
-      setState(() => _manualError = 'All items must have a name.');
-      return;
+    for (int i = 0; i < _items.length; i++) {
+      final it = _items[i];
+      if (it.itemName.trim().isEmpty) {
+        setState(() => _manualError = 'Item #${i + 1}: Name is required.');
+        return;
+      }
+      if (it.quantity < 1) {
+        setState(() => _manualError = 'Item #${i + 1}: Quantity must be at least 1.');
+        return;
+      }
+      if (it.unit.trim().isEmpty) {
+        setState(() => _manualError = 'Item #${i + 1}: Unit is required.');
+        return;
+      }
+      if (it.estimatedUnitPrice < 0) {
+        setState(() => _manualError = 'Item #${i + 1}: Estimated unit price cannot be negative.');
+        return;
+      }
+      if (it.description.trim().isEmpty) {
+        setState(() => _manualError = 'Item #${i + 1}: Description is required.');
+        return;
+      }
     }
 
     setState(() {

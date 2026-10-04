@@ -137,7 +137,7 @@ namespace Procura.API.Modules.ApprovalWorkflow.Controllers
         /// Initializes a new approval workflow for a procurement request.
         /// </summary>
         [HttpPost("initialize")]
-        [Authorize(Roles = "EMPLOYEE,ADMIN")]
+        [Authorize(Roles = "EMPLOYEE,PROCUREMENT_OFFICER,ADMIN")]
         [ProducesResponseType(typeof(ApprovalWorkflowResponseDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
