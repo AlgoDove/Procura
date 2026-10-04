@@ -187,24 +187,25 @@ export interface WorkflowProcessResponse {
 export interface VendorResponse {
   id: string;
   name: string;
-  contactEmail: string;
-  contactPhone?: string;
+  contactPerson: string;
+  email: string;
+  phoneNumber: string;
   address?: string;
   category: string;
   status: VendorStatus;
-  rating?: number;
-  notes?: string;
+  rating: number;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateVendorDto {
   name: string;
-  contactEmail: string;
-  contactPhone?: string;
+  contactPerson: string;
+  email: string;
+  phoneNumber: string;
   address?: string;
   category: string;
-  notes?: string;
+  rating?: number;
 }
 
 export type UpdateVendorDto = CreateVendorDto;

@@ -10,11 +10,12 @@ export default function CreateVendorPage() {
   const queryClient = useQueryClient();
 
   const [name, setName] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [address, setAddress] = useState('');
   const [category, setCategory] = useState('');
-  const [notes, setNotes] = useState('');
+  const [rating, setRating] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
 
   const { mutate, isPending } = useMutation({
@@ -45,7 +46,13 @@ export default function CreateVendorPage() {
       return;
     }
 
-    const trimmedEmail = contactEmail.trim();
+    const trimmedContactPerson = contactPerson.trim();
+    if (!trimmedContactPerson) {
+      setFormError('Contact person is required.');
+      return;
+    }
+
+    const trimmedEmail = email.trim();
     if (!trimmedEmail) {
       setFormError('Contact email is required.');
       return;
@@ -55,13 +62,20 @@ export default function CreateVendorPage() {
       return;
     }
 
+    const trimmedPhoneNumber = phoneNumber.trim();
+    if (!trimmedPhoneNumber) {
+      setFormError('Contact phone is required.');
+      return;
+    }
+
     mutate({
       name: trimmedName,
-      contactEmail: trimmedEmail,
-      contactPhone: contactPhone.trim() || undefined,
+      contactPerson: trimmedContactPerson,
+      email: trimmedEmail,
+      phoneNumber: trimmedPhoneNumber,
       address: address.trim() || undefined,
       category: trimmedCategory,
-      notes: notes.trim() || undefined,
+      rating,
     });
   };
 
@@ -82,21 +96,27 @@ export default function CreateVendorPage() {
           </div>
           <div className={styles.row}>
             <div className={styles.field}>
-              <label htmlFor="contactEmail">Contact email *</label>
-              <input id="contactEmail" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="e.g. contact@acme.com" required />
+              <label htmlFor="contactPerson">Contact person *</label>
+              <input id="contactPerson" type="text" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} required />
             </div>
             <div className={styles.field}>
-              <label htmlFor="contactPhone">Contact phone</label>
-              <input id="contactPhone" type="text" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="e.g. +1 555-0199" />
+              <label htmlFor="email">Contact email *</label>
+              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="e.g. contact@acme.com" required />
+            </div>
+          </div>
+          <div className={styles.row}>
+            <div className={styles.field}>
+              <label htmlFor="phoneNumber">Contact phone *</label>
+              <input id="phoneNumber" type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="e.g. +1 555-0199" required />
+            </div>
+            <div className={styles.field}>
+              <label htmlFor="rating">Rating</label>
+              <input id="rating" type="number" min={0} max={5} step={0.1} value={rating} onChange={(e) => setRating(Number(e.target.value))} />
             </div>
           </div>
           <div className={styles.field}>
             <label htmlFor="address">Address</label>
             <input id="address" type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 123 Business Way, Suite 100" />
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="notes">Notes</label>
-            <textarea id="notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional vendor notes or remarks" />
           </div>
         </div>
 
