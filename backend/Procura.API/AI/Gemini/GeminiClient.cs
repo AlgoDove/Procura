@@ -16,6 +16,7 @@ namespace Procura.API.AI.Gemini
         private readonly HttpClient _httpClient;
         private readonly GeminiOptions _options;
         private readonly ILogger<GeminiClient> _logger;
+        private readonly string? _agentRole;
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -23,10 +24,16 @@ namespace Procura.API.AI.Gemini
         };
 
         public GeminiClient(HttpClient httpClient, IOptions<GeminiOptions> options, ILogger<GeminiClient> logger)
+            : this(httpClient, options, logger, null)
+        {
+        }
+
+        public GeminiClient(HttpClient httpClient, IOptions<GeminiOptions> options, ILogger<GeminiClient> logger, string? agentRole)
         {
             _httpClient = httpClient;
             _options = options.Value;
             _logger = logger;
+            _agentRole = agentRole;
         }
 
         public async Task<GeminiClientResult> GenerateContentAsync(string systemPrompt, string userPrompt, CancellationToken ct = default)
@@ -40,7 +47,16 @@ namespace Procura.API.AI.Gemini
 
             if (string.IsNullOrWhiteSpace(_options.ApiKey))
             {
-                var error = "Gemini API key is not configured. Please set 'Gemini:ApiKey' in configuration or User Secrets.";
+                var roleHint = _agentRole switch
+                {
+                    "ProcurementRequest" => "'Gemini:OrchestratorApiKey' (or 'Gemini:ApiKey')",
+                    "VendorManagement" => "'Gemini:VendorManagementApiKey' (or 'Gemini:ApiKey')",
+                    "VendorEvaluation" => "'Gemini:VendorEvaluationApiKey' (or 'Gemini:ApiKey')",
+                    "ApprovalWorkflow" => "'Gemini:ApprovalWorkflowApiKey' (or 'Gemini:ApiKey')",
+                    _ => "'Gemini:ApiKey'"
+                };
+                var rolePrefix = !string.IsNullOrWhiteSpace(_agentRole) ? $" for {_agentRole}" : "";
+                var error = $"Gemini API key is not configured{rolePrefix}. Please set {roleHint} in configuration or User Secrets.";
                 _logger.LogError("{Error}", error);
                 return GeminiClientResult.Fail(error, isAuth: true);
             }

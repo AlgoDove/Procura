@@ -118,6 +118,17 @@ builder.Services.Configure<GeminiOptions>(options =>
     var geminiSection = builder.Configuration.GetSection("Gemini");
     options.Model = builder.Configuration["Gemini:Model"] ?? geminiSection["Model"];
     options.ApiKey = builder.Configuration["Gemini:ApiKey"] ?? geminiSection["ApiKey"];
+    options.OrchestratorApiKey = builder.Configuration["Gemini:OrchestratorApiKey"]
+        ?? builder.Configuration["Gemini:ProcurementRequestApiKey"]
+        ?? geminiSection["OrchestratorApiKey"]
+        ?? geminiSection["ProcurementRequestApiKey"];
+    options.VendorManagementApiKey = builder.Configuration["Gemini:VendorManagementApiKey"]
+        ?? geminiSection["VendorManagementApiKey"];
+    options.VendorEvaluationApiKey = builder.Configuration["Gemini:VendorEvaluationApiKey"]
+        ?? geminiSection["VendorEvaluationApiKey"];
+    options.ApprovalWorkflowApiKey = builder.Configuration["Gemini:ApprovalWorkflowApiKey"]
+        ?? geminiSection["ApprovalWorkflowApiKey"];
+
     if (int.TryParse(builder.Configuration["Gemini:TimeoutSeconds"] ?? geminiSection["TimeoutSeconds"], out var timeout))
         options.TimeoutSeconds = timeout;
     if (int.TryParse(builder.Configuration["Gemini:MaxRetries"] ?? geminiSection["MaxRetries"], out var retries))
@@ -125,6 +136,7 @@ builder.Services.Configure<GeminiOptions>(options =>
 });
 
 builder.Services.AddHttpClient<IGeminiClient, GeminiClient>();
+builder.Services.AddHttpClient<IGeminiClientFactory, GeminiClientFactory>();
 builder.Services.AddScoped<IWorkflowRepository, WorkflowRepository>();
 builder.Services.AddSingleton<ProcurementRequestDeterministicValidator>();
 builder.Services.AddScoped<IAgentTool, ValidateDraftDataTool>();
@@ -139,13 +151,45 @@ builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents
 builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.ApprovalWorkflow.Tools.GenerateExecutiveBriefTool>();
 builder.Services.AddScoped<Procura.API.AI.Core.IAgentTool, Procura.API.AI.Agents.ApprovalWorkflow.Tools.RecordAiAgentExecutionTool>();
 builder.Services.AddScoped<ToolRegistry>();
-builder.Services.AddScoped<IProcurementRequestAgent, ProcurementRequestAgent>();
+builder.Services.AddScoped<IProcurementRequestAgent>(sp =>
+{
+    var factory = sp.GetRequiredService<IGeminiClientFactory>();
+    var client = factory.CreateClient(GeminiAgentRole.ProcurementRequest);
+    var toolRegistry = sp.GetRequiredService<ToolRegistry>();
+    var logger = sp.GetRequiredService<ILogger<ProcurementRequestAgent>>();
+    return new ProcurementRequestAgent(client, toolRegistry, logger);
+});
 builder.Services.AddScoped<Procura.API.AI.Agents.VendorManagement.VendorManagementDeterministicValidator>();
-builder.Services.AddScoped<Procura.API.AI.Agents.VendorManagement.IVendorManagementAgent, Procura.API.AI.Agents.VendorManagement.VendorManagementAgent>();
+builder.Services.AddScoped<Procura.API.AI.Agents.VendorManagement.IVendorManagementAgent>(sp =>
+{
+    var factory = sp.GetRequiredService<IGeminiClientFactory>();
+    var client = factory.CreateClient(GeminiAgentRole.VendorManagement);
+    var toolRegistry = sp.GetRequiredService<ToolRegistry>();
+    var validator = sp.GetRequiredService<Procura.API.AI.Agents.VendorManagement.VendorManagementDeterministicValidator>();
+    var logger = sp.GetRequiredService<ILogger<Procura.API.AI.Agents.VendorManagement.VendorManagementAgent>>();
+    return new Procura.API.AI.Agents.VendorManagement.VendorManagementAgent(client, toolRegistry, validator, logger);
+});
 builder.Services.AddScoped<Procura.API.AI.Agents.VendorEvaluation.VendorEvaluationDeterministicValidator>();
-builder.Services.AddScoped<Procura.API.AI.Agents.VendorEvaluation.IVendorEvaluationAgent, Procura.API.AI.Agents.VendorEvaluation.VendorEvaluationAgent>();
+builder.Services.AddScoped<Procura.API.AI.Agents.VendorEvaluation.IVendorEvaluationAgent>(sp =>
+{
+    var factory = sp.GetRequiredService<IGeminiClientFactory>();
+    var client = factory.CreateClient(GeminiAgentRole.VendorEvaluation);
+    var toolRegistry = sp.GetRequiredService<ToolRegistry>();
+    var validator = sp.GetRequiredService<Procura.API.AI.Agents.VendorEvaluation.VendorEvaluationDeterministicValidator>();
+    var logger = sp.GetRequiredService<ILogger<Procura.API.AI.Agents.VendorEvaluation.VendorEvaluationAgent>>();
+    return new Procura.API.AI.Agents.VendorEvaluation.VendorEvaluationAgent(client, toolRegistry, validator, logger);
+});
 builder.Services.AddScoped<Procura.API.AI.Agents.ApprovalWorkflow.ApprovalDecisionDeterministicValidator>();
-builder.Services.AddScoped<Procura.API.AI.Agents.ApprovalWorkflow.IProcurementDecisionSupportAgent, Procura.API.AI.Agents.ApprovalWorkflow.ProcurementDecisionSupportAgent>();
+builder.Services.AddScoped<Procura.API.AI.Agents.ApprovalWorkflow.IProcurementDecisionSupportAgent>(sp =>
+{
+    var factory = sp.GetRequiredService<IGeminiClientFactory>();
+    var client = factory.CreateClient(GeminiAgentRole.ApprovalWorkflow);
+    var toolRegistry = sp.GetRequiredService<ToolRegistry>();
+    var validator = sp.GetRequiredService<Procura.API.AI.Agents.ApprovalWorkflow.ApprovalDecisionDeterministicValidator>();
+    var workflowRepo = sp.GetRequiredService<Procura.API.Modules.ApprovalWorkflow.Repositories.IApprovalWorkflowRepository>();
+    var logger = sp.GetRequiredService<ILogger<Procura.API.AI.Agents.ApprovalWorkflow.ProcurementDecisionSupportAgent>>();
+    return new Procura.API.AI.Agents.ApprovalWorkflow.ProcurementDecisionSupportAgent(client, toolRegistry, validator, workflowRepo, logger);
+});
 builder.Services.AddScoped<IWorkflowOrchestrator, CentralOrchestrator>();
 
 // Configure JWT Authentication
