@@ -111,7 +111,8 @@ Procura/
 │   │   │   ├── Agents/                 # Specialized domain agents
 │   │   │   │   ├── ApprovalWorkflow/   # Decision support & readiness agents
 │   │   │   │   ├── ProcurementRequest/ # Request extraction agent & tools
-│   │   │   │   └── VendorEvaluation/   # Vendor scoring & recommendation agent
+│   │   │   │   ├── VendorEvaluation/   # Vendor scoring & recommendation agent
+│   │   │   │   └── VendorManagement/   # Natural-language vendor selection intent agent & tools
 │   │   │   ├── Core/                   # Agent contracts, ToolRegistry, WorkflowContext
 │   │   │   ├── Gemini/                 # Native Gemini API client & configuration
 │   │   │   ├── Orchestration/          # CentralOrchestrator workflow coordinator
@@ -179,6 +180,7 @@ The system is organized into four core functional components, aligning with acad
 * Tracks company name, contact person, verified email address, phone number, category, physical address, and performance rating (0–5).
 * Exposes CRUD APIs for procurement officers and administrators with comprehensive validation.
 * Supported by full Web and Mobile interfaces (list, detail, create, edit).
+* Integrates `VendorManagementAgent` (`WorkflowStage.VENDOR_SELECTION`) to extract vendor selection intent from natural-language workflow objectives, search the certified catalog via `SearchVendorsTool`, validate active status via `VendorManagementDeterministicValidator`, and link candidate vendors via `SelectVendorTool`.
 
 ### 3. Vendor Evaluation Subsystem (Component 3)
 * Collects and manages multiple competitive vendor quotes against submitted procurement requests.
@@ -235,13 +237,32 @@ stateDiagram-v2
 
 ## Agentic AI Architecture & Human Oversight
 
-The Procura AI engine adheres to strict **Human-in-the-Loop (HITL)** principles:
+The Procura AI subsystem implements an agentic workflow coordinated by `CentralOrchestrator` across four specialized domain agents:
 
-1. **Sandboxed Tools:** All state-modifying actions are encapsulated inside strongly-typed tools inheriting from `IAgentTool`. Tools check user permissions before executing.
-2. **Draft-Only Mutation:** AI agents can only write records in `DRAFT` status (`CreateDraftRequestTool`, `UpdateDraftRequestTool`).
-3. **Autonomous Validation:** If natural language lacks critical details, the agent responds with status `NEEDS_USER_INPUT` and returns an actionable `ClarificationPrompt`.
-4. **Deterministic Gatekeeping:** Numerical computations (vendor scoring weights, total sums, quantity checks) are computed deterministically in code rather than trusting raw LLM math.
-5. **No AI Final Authority:** AI agents provide decision support briefs, but **only human Managers or Administrators** can execute binding approval transitions.
+```mermaid
+flowchart LR
+    A["ProcurementRequestAgent<br/>(Stage: PROCUREMENT_REQUEST)"] --> B["VendorManagementAgent<br/>(Stage: VENDOR_SELECTION)"]
+    B --> C["VendorEvaluationAgent<br/>(Stage: VENDOR_EVALUATION)"]
+    C --> D["ProcurementDecisionSupportAgent<br/>(Stage: APPROVAL_WORKFLOW)"]
+```
+
+### Domain Agents
+1. **ProcurementRequestAgent:** Extracts structured draft requests from natural language requirements. Mutates database strictly via `CreateDraftRequestTool` and `UpdateDraftRequestTool` in `DRAFT` status.
+2. **VendorManagementAgent:** Parses vendor search and selection criteria from user objectives, querying certified suppliers via `SearchVendorsTool` and registering candidate selections via `SelectVendorTool`.
+3. **VendorEvaluationAgent:** Synthesizes vendor quotes against requirements, executes deterministic scoring via `ScoreVendorsTool`, and produces comparative recommendation summaries via `GenerateRecommendationTool`.
+4. **ProcurementDecisionSupportAgent:** Evaluates manager approval readiness (`EvaluateApprovalReadinessTool`), analyzes risks, and produces formal executive decision briefs (`GenerateExecutiveBriefTool`).
+
+### Multi-Key Project Quota Separation
+* Each agent is injected with a scoped `IGeminiClient` created by `IGeminiClientFactory`.
+* The backend supports configuring four independent Google project API keys (`Gemini:OrchestratorApiKey`, `Gemini:VendorManagementApiKey`, `Gemini:VendorEvaluationApiKey`, `Gemini:ApprovalWorkflowApiKey`) or a shared global fallback (`Gemini:ApiKey`).
+* When team members supply keys from **distinct Google Cloud projects**, Gemini quota consumption is segregated across individual project allocations. (Note: Keys created under the *same* Google project share that single project's quota limits).
+
+### Human-in-the-Loop (HITL) Guardrails
+1. **Sandboxed Tools:** All state-modifying actions are encapsulated inside strongly-typed tools inheriting from `IAgentTool`. Tools verify requester role permissions before executing.
+2. **Draft-Only Mutation:** AI agents can only write records in `DRAFT` status. The AI cannot submit requests or make binding approval decisions.
+3. **Autonomous Validation:** If natural language lacks critical details, the agent pauses with status `NEEDS_USER_INPUT` and returns an actionable `ClarificationPrompt`.
+4. **Deterministic Gatekeeping:** Numerical calculations (scoring weights, rating calculations, quantity checks) are computed deterministically in C# business logic rather than raw LLM generation.
+5. **Human Authority:** AI agents provide decision support briefs, but **only human Managers or Administrators** can execute binding approval transitions.
 
 ---
 
@@ -275,12 +296,22 @@ Navigate to the API directory and configure local settings:
 cd backend/Procura.API
 ```
 
-For local development, connection strings and development keys can be configured in `appsettings.Development.json` or via .NET User Secrets:
+For local development, connection strings and Gemini API keys can be configured in `appsettings.Development.json` or via .NET User Secrets:
 
 ```bash
-dotnet user-secrets set "Gemini:ApiKey" "<YOUR_GOOGLE_GEMINI_API_KEY>"
+# Option A: Multi-project credential configuration (distributes usage across individual Google projects):
+dotnet user-secrets set "Gemini:OrchestratorApiKey" "<ORCHESTRATOR_PROJECT_GEMINI_KEY>"
+dotnet user-secrets set "Gemini:VendorManagementApiKey" "<VENDOR_MANAGEMENT_PROJECT_GEMINI_KEY>"
+dotnet user-secrets set "Gemini:VendorEvaluationApiKey" "<VENDOR_EVALUATION_PROJECT_GEMINI_KEY>"
+dotnet user-secrets set "Gemini:ApprovalWorkflowApiKey" "<APPROVAL_WORKFLOW_PROJECT_GEMINI_KEY>"
+
+# Option B: Single global fallback key for local development:
+dotnet user-secrets set "Gemini:ApiKey" "<SHARED_DEVELOPMENT_GEMINI_KEY>"
+
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=procura;Username=postgres;Password=<YOUR_LOCAL_PASSWORD>"
 ```
+
+> **Note on Quota Distribution:** These are local development secrets stored securely outside source control via .NET User Secrets. To benefit from independent quota pools, each key should originate from a distinct Google Cloud project. Keys generated within the same Google project share that project's quota limits.
 
 Apply migrations to initialize the database:
 
@@ -359,7 +390,7 @@ Runs all unit, service, controller, and deterministic validation tests:
 ```bash
 dotnet test backend/Procura.sln
 ```
-*Current test suite:* **217 passed, 0 failed, 4 skipped** (skipped tests are optional manual Gemini live API smoke tests).
+*Current test suite:* **222 passed, 0 failed, 4 skipped** (skipped tests are optional manual Gemini live API smoke tests).
 
 ### React Web Tests & Production Build
 Runs component and unit tests:
@@ -396,7 +427,11 @@ When preparing for deployment, the deployment environment must supply the follow
 | `DATABASE_URL` | Backend | Cloud PostgreSQL URI (e.g. Neon connection string):<br/>`postgres://<user>:<password>@<host>:<port>/<db>?sslmode=require` |
 | `ConnectionStrings__DefaultConnection` | Backend | Standard ADO.NET connection string (alternative to `DATABASE_URL`):<br/>`Host=<host>;Port=5432;Database=<db>;Username=<user>;Password=<password>;Ssl Mode=Require;` |
 | `JWT_SECRET` | Backend | Cryptographic key for signing JWT tokens (must be at least 32 characters long in production). |
-| `Gemini__ApiKey` | Backend | Google Gemini API Key with access to Generative Language models. |
+| `Gemini__OrchestratorApiKey` | Backend | Gemini API key for the Procurement Request drafting & Orchestration agent. |
+| `Gemini__VendorManagementApiKey` | Backend | Gemini API key for the Vendor Management intent extraction agent. |
+| `Gemini__VendorEvaluationApiKey` | Backend | Gemini API key for the Vendor Evaluation criteria & recommendation agent. |
+| `Gemini__ApprovalWorkflowApiKey` | Backend | Gemini API key for the Approval Workflow decision support agent. |
+| `Gemini__ApiKey` | Backend | Optional global fallback Gemini API key used for any agent without a dedicated key configured. |
 | `Gemini__Model` | Backend | Model name (defaults to `gemini-3.5-flash`). |
 | `Cors__AllowedOrigins__0` | Backend | Production origin URL for the React frontend (e.g. `https://<PRODUCTION_REACT_URL>`). |
 | `VITE_API_BASE_URL` | React Web | Base URL pointing to the deployed ASP.NET Core API (e.g. `https://<PRODUCTION_API_URL>`). |
@@ -422,7 +457,10 @@ When preparing for deployment, the deployment environment must supply the follow
 2. Configure mandatory production environment variables:
    * `DATABASE_URL=<NEON_POSTGRES_CONNECTION_STRING>`
    * `JWT_SECRET=<SECURE_RANDOM_32_CHAR_SECRET>`
-   * `Gemini__ApiKey=<PRODUCTION_GEMINI_API_KEY>`
+   * `Gemini__OrchestratorApiKey=<ORCHESTRATOR_PROJECT_GEMINI_KEY>` (or `Gemini__ApiKey=<SHARED_KEY>`)
+   * `Gemini__VendorManagementApiKey=<VENDOR_MANAGEMENT_PROJECT_GEMINI_KEY>`
+   * `Gemini__VendorEvaluationApiKey=<VENDOR_EVALUATION_PROJECT_GEMINI_KEY>`
+   * `Gemini__ApprovalWorkflowApiKey=<APPROVAL_WORKFLOW_PROJECT_GEMINI_KEY>`
    * `Cors__AllowedOrigins__0=https://<PRODUCTION_REACT_URL>`
 3. Verify server liveness using the health endpoint:
    ```http
@@ -452,7 +490,7 @@ When preparing for deployment, the deployment environment must supply the follow
    frontend-mobile/build/app/outputs/flutter-apk/app-release.apk
    ```
 
-> **Important Deployment Notice:** Production URLs are not known prior to provisioning cloud infrastructure. The deployment engineer must configure `DATABASE_URL`, `JWT_SECRET`, `Gemini__ApiKey`, and `Cors__AllowedOrigins__0` on the backend, and supply the resulting `<PRODUCTION_API_URL>` to the React build and Flutter APK build.
+> **Important Deployment Notice:** Production URLs are not known prior to provisioning cloud infrastructure. The deployment engineer must configure `DATABASE_URL`, `JWT_SECRET`, Gemini API keys (multi-project keys or fallback `Gemini__ApiKey`), and `Cors__AllowedOrigins__0` on the backend, and supply the resulting `<PRODUCTION_API_URL>` to the React build and Flutter APK build.
 
 ---
 
