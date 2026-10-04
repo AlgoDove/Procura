@@ -74,15 +74,39 @@ export default function EditRequestPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) { setFormError('Title is required.'); return; }
+    if (trimmedTitle.length > 150) { setFormError('Title cannot exceed 150 characters.'); return; }
+
+    const trimmedDesc = description.trim();
+    if (!trimmedDesc) { setFormError('Description is required.'); return; }
+
+    const trimmedJust = justification.trim();
+    if (!trimmedJust) { setFormError('Justification is required.'); return; }
+
+    if (!requiredByDate) { setFormError('Required by date is required.'); return; }
+
     if (items.length === 0) { setFormError('At least one item is required.'); return; }
     if (items.some((it) => !it.itemName.trim())) { setFormError('All items must have a name.'); return; }
+    if (items.some((it) => !it.unit.trim())) { setFormError('All items must have a unit (e.g. Piece, Box, Hours).'); return; }
+    if (items.some((it) => !it.description.trim())) { setFormError('All items must have a description.'); return; }
+    if (items.some((it) => (it.quantity || 0) < 1)) { setFormError('Item quantity must be at least 1.'); return; }
+    if (items.some((it) => (it.estimatedUnitPrice || 0) < 0)) { setFormError('Item price cannot be negative.'); return; }
+
     mutate({
-      title,
-      description,
-      justification,
+      title: trimmedTitle,
+      description: trimmedDesc,
+      justification: trimmedJust,
       priority,
       requiredByDate: new Date(requiredByDate).toISOString(),
-      items,
+      items: items.map(({ itemName, description: d, quantity, unit, estimatedUnitPrice }) => ({
+        itemName: itemName.trim(),
+        description: d.trim(),
+        quantity,
+        unit: unit.trim(),
+        estimatedUnitPrice,
+      })),
     });
   };
 

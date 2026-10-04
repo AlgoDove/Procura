@@ -71,6 +71,29 @@ class _EditRequestScreenState extends State<EditRequestScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_requiredByDate == null) { setState(() => _error = 'Required by date is required.'); return; }
     if (_items.isEmpty) { setState(() => _error = 'At least one item is required.'); return; }
+    for (int i = 0; i < _items.length; i++) {
+      final it = _items[i];
+      if (it.itemName.trim().isEmpty) {
+        setState(() => _error = 'Item #${i + 1}: Name is required.');
+        return;
+      }
+      if (it.quantity < 1) {
+        setState(() => _error = 'Item #${i + 1}: Quantity must be at least 1.');
+        return;
+      }
+      if (it.unit.trim().isEmpty) {
+        setState(() => _error = 'Item #${i + 1}: Unit is required.');
+        return;
+      }
+      if (it.estimatedUnitPrice < 0) {
+        setState(() => _error = 'Item #${i + 1}: Estimated unit price cannot be negative.');
+        return;
+      }
+      if (it.description.trim().isEmpty) {
+        setState(() => _error = 'Item #${i + 1}: Description is required.');
+        return;
+      }
+    }
 
     setState(() { _saving = true; _error = null; });
     try {

@@ -234,6 +234,244 @@ class WorkflowProcessResponse {
         updatedAt = j['updatedAt'] as String? ?? '';
 }
 
+// ─── Approval Workflow DTOs ────────────────────────────────────────────────
+
+class ApprovalDecisionResponse {
+  final String id;
+  final String managerId;
+  final String managerName;
+  final String decision;
+  final String? comments;
+  final String createdAt;
+
+  ApprovalDecisionResponse.fromJson(Map<String, dynamic> j)
+      : id = j['id'] as String? ?? '',
+        managerId = j['managerId'] as String? ?? '',
+        managerName = j['managerName'] as String? ?? '',
+        decision = j['decision'] as String? ?? '',
+        comments = j['comments'] as String?,
+        createdAt = j['createdAt'] as String? ?? '';
+}
+
+class NotificationResponse {
+  final String id;
+  final String recipientUserId;
+  final String title;
+  final String message;
+  final String type;
+  final bool isRead;
+  final String createdAt;
+
+  NotificationResponse.fromJson(Map<String, dynamic> j)
+      : id = j['id'] as String? ?? '',
+        recipientUserId = j['recipientUserId'] as String? ?? '',
+        title = j['title'] as String? ?? '',
+        message = j['message'] as String? ?? '',
+        type = j['type'] as String? ?? '',
+        isRead = j['isRead'] as bool? ?? false,
+        createdAt = j['createdAt'] as String? ?? '';
+}
+
+class VendorEvaluationItemResponse {
+  final String id;
+  final String vendorId;
+  final int rank;
+  final double overallScore;
+  final String reasoning;
+  final List<String> riskFlags;
+
+  VendorEvaluationItemResponse.fromJson(Map<String, dynamic> j)
+      : id = j['id'] as String? ?? '',
+        vendorId = j['vendorId'] as String? ?? '',
+        rank = j['rank'] as int? ?? 0,
+        overallScore = (j['overallScore'] as num?)?.toDouble() ?? 0.0,
+        reasoning = j['reasoning'] as String? ?? '',
+        riskFlags = (j['riskFlags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+}
+
+class ProcurementEvaluationSummaryResponse {
+  final String procurementRequestId;
+  final int totalCandidatesEvaluated;
+  final String? topRecommendedVendorId;
+  final double? topScore;
+  final String recommendationSummary;
+  final String evaluatedAt;
+  final List<VendorEvaluationItemResponse> rankedEvaluations;
+
+  ProcurementEvaluationSummaryResponse.fromJson(Map<String, dynamic> j)
+      : procurementRequestId = j['procurementRequestId'] as String? ?? '',
+        totalCandidatesEvaluated = j['totalCandidatesEvaluated'] as int? ?? 0,
+        topRecommendedVendorId = j['topRecommendedVendorId'] as String?,
+        topScore = (j['topScore'] as num?)?.toDouble(),
+        recommendationSummary = j['recommendationSummary'] as String? ?? '',
+        evaluatedAt = j['evaluatedAt'] as String? ?? '',
+        rankedEvaluations = (j['rankedEvaluations'] as List<dynamic>?)
+                ?.map((e) => VendorEvaluationItemResponse.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [];
+}
+
+class ApprovalWorkflowResponse {
+  final String id;
+  final String procurementRequestId;
+  final String requestNumber;
+  final String requestTitle;
+  final double estimatedTotal;
+  final String requesterId;
+  final String requesterName;
+  final String currentStatus;
+  final String createdAt;
+  final String updatedAt;
+  final String? completedAt;
+  final List<ApprovalDecisionResponse> decisions;
+  final List<NotificationResponse> notifications;
+  final ProcurementEvaluationSummaryResponse? vendorRecommendationSummary;
+
+  ApprovalWorkflowResponse.fromJson(Map<String, dynamic> j)
+      : id = j['id'] as String? ?? '',
+        procurementRequestId = j['procurementRequestId'] as String? ?? '',
+        requestNumber = j['requestNumber'] as String? ?? '',
+        requestTitle = j['requestTitle'] as String? ?? '',
+        estimatedTotal = (j['estimatedTotal'] as num?)?.toDouble() ?? 0.0,
+        requesterId = j['requesterId'] as String? ?? '',
+        requesterName = j['requesterName'] as String? ?? '',
+        currentStatus = j['currentStatus'] as String? ?? '',
+        createdAt = j['createdAt'] as String? ?? '',
+        updatedAt = j['updatedAt'] as String? ?? '',
+        completedAt = j['completedAt'] as String?,
+        decisions = (j['decisions'] as List<dynamic>?)
+                ?.map((e) => ApprovalDecisionResponse.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
+        notifications = (j['notifications'] as List<dynamic>?)
+                ?.map((e) => NotificationResponse.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
+        vendorRecommendationSummary = j['vendorRecommendationSummary'] != null
+            ? ProcurementEvaluationSummaryResponse.fromJson(
+                j['vendorRecommendationSummary'] as Map<String, dynamic>)
+            : null;
+}
+
+class AIAgentExecutionItem {
+  final String id;
+  final String agentName;
+  final int executionOrder;
+  final String executionStatus;
+  final String? outputSummary;
+  final String? toolExecutionMetadata;
+  final String startedAt;
+
+  AIAgentExecutionItem.fromJson(Map<String, dynamic> j)
+      : id = j['id'] as String? ?? '',
+        agentName = j['agentName'] as String? ?? '',
+        executionOrder = j['executionOrder'] as int? ?? 0,
+        executionStatus = j['executionStatus'] as String? ?? '',
+        outputSummary = j['outputSummary'] as String?,
+        toolExecutionMetadata = j['toolExecutionMetadata'] as String?,
+        startedAt = j['startedAt'] as String? ?? '';
+}
+
+class WorkflowAuditTrailResponse {
+  final String workflowId;
+  final String procurementRequestId;
+  final String requestNumber;
+  final String requestTitle;
+  final double estimatedTotal;
+  final String requesterId;
+  final String requesterName;
+  final String currentStatus;
+  final List<ApprovalDecisionResponse> decisions;
+  final List<AIAgentExecutionItem> agentExecutions;
+  final List<NotificationResponse> notifications;
+
+  WorkflowAuditTrailResponse.fromJson(Map<String, dynamic> j)
+      : workflowId = j['workflowId'] as String? ?? '',
+        procurementRequestId = j['procurementRequestId'] as String? ?? '',
+        requestNumber = j['requestNumber'] as String? ?? '',
+        requestTitle = j['requestTitle'] as String? ?? '',
+        estimatedTotal = (j['estimatedTotal'] as num?)?.toDouble() ?? 0.0,
+        requesterId = j['requesterId'] as String? ?? '',
+        requesterName = j['requesterName'] as String? ?? '',
+        currentStatus = j['currentStatus'] as String? ?? '',
+        decisions = (j['decisions'] as List<dynamic>?)
+                ?.map((e) => ApprovalDecisionResponse.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
+        agentExecutions = (j['agentExecutions'] as List<dynamic>?)
+                ?.map((e) => AIAgentExecutionItem.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
+        notifications = (j['notifications'] as List<dynamic>?)
+                ?.map((e) => NotificationResponse.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [];
+}
+
+// ─── Vendor Evaluation DTOs ───────────────────────────────────────────────
+
+class CriterionScoreResponseDto {
+  final String id;
+  final String vendorEvaluationId;
+  final String criterionName;
+  final double score;
+  final double weight;
+
+  CriterionScoreResponseDto.fromJson(Map<String, dynamic> j)
+      : id = j['id'] as String? ?? '',
+        vendorEvaluationId = j['vendorEvaluationId'] as String? ?? '',
+        criterionName = j['criterionName'] as String? ?? '',
+        score = (j['score'] as num?)?.toDouble() ?? 0.0,
+        weight = (j['weight'] as num?)?.toDouble() ?? 0.0;
+}
+
+class VendorEvaluationResponseDto {
+  final String id;
+  final String procurementRequestId;
+  final String vendorId;
+  final int rank;
+  final double overallScore;
+  final String reasoning;
+  final List<String> riskFlags;
+  final bool generatedByAgent;
+  final String createdAt;
+  final String updatedAt;
+  final List<CriterionScoreResponseDto> criterionScores;
+
+  VendorEvaluationResponseDto.fromJson(Map<String, dynamic> j)
+      : id = j['id'] as String? ?? '',
+        procurementRequestId = j['procurementRequestId'] as String? ?? '',
+        vendorId = j['vendorId'] as String? ?? '',
+        rank = (j['rank'] as num?)?.toInt() ?? 1,
+        overallScore = (j['overallScore'] as num?)?.toDouble() ?? 0.0,
+        reasoning = j['reasoning'] as String? ?? '',
+        riskFlags = (j['riskFlags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+        generatedByAgent = j['generatedByAgent'] as bool? ?? false,
+        createdAt = j['createdAt'] as String? ?? '',
+        updatedAt = j['updatedAt'] as String? ?? '',
+        criterionScores = (j['criterionScores'] as List<dynamic>?)
+            ?.map((e) => CriterionScoreResponseDto.fromJson(e as Map<String, dynamic>))
+            .toList() ?? [];
+}
+
+class ProcurementEvaluationSummaryDto {
+  final String procurementRequestId;
+  final int totalCandidatesEvaluated;
+  final String? topRecommendedVendorId;
+  final DateTime? evaluatedAt;
+  final bool isApprovedByManager;
+  final List<VendorEvaluationResponseDto> rankedEvaluations;
+
+  ProcurementEvaluationSummaryDto.fromJson(Map<String, dynamic> j)
+      : procurementRequestId = j['procurementRequestId'] as String? ?? '',
+        totalCandidatesEvaluated = (j['totalCandidatesEvaluated'] as num?)?.toInt() ?? 0,
+        topRecommendedVendorId = j['topRecommendedVendorId'] as String?,
+        evaluatedAt = j['evaluatedAt'] != null ? DateTime.tryParse(j['evaluatedAt'].toString()) : null,
+        isApprovedByManager = j['isApprovedByManager'] as bool? ?? false,
+        rankedEvaluations = (j['rankedEvaluations'] as List<dynamic>?)
+            ?.map((e) => VendorEvaluationResponseDto.fromJson(e as Map<String, dynamic>))
+            .toList() ?? [];
+}
 // ─── Vendor DTOs ───────────────────────────────────────────────────────────
 
 class VendorResponse {

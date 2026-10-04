@@ -7,6 +7,8 @@ import '../services/auth_service.dart';
 import '../utils/formatters.dart';
 import 'edit_request_screen.dart';
 import 'ai_workflow_screen.dart';
+import 'widgets/approval_workflow_card.dart';
+import 'widgets/vendor_recommendation_card.dart';
 
 class RequestDetailScreen extends StatefulWidget {
   final String requestId;
@@ -18,6 +20,7 @@ class RequestDetailScreen extends StatefulWidget {
 
 class _RequestDetailScreenState extends State<RequestDetailScreen> {
   ProcurementRequestResponse? _request;
+  ProcurementEvaluationSummaryDto? _evaluationSummary;
   bool _loading = true;
   String? _error;
   String? _actionError;
@@ -44,7 +47,27 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final r = await ApiClient.dio.get<Map<String, dynamic>>('/api/procurement-requests/${widget.requestId}');
-      setState(() { _request = ProcurementRequestResponse.fromJson(r.data!); });
+      final req = ProcurementRequestResponse.fromJson(r.data!);
+      ProcurementEvaluationSummaryDto? evalSummary;
+
+      const evalStatuses = {'UNDER_EVALUATION', 'PENDING_APPROVAL', 'APPROVED', 'COMPLETED'};
+      if (evalStatuses.contains(req.status)) {
+        try {
+          final evalRes = await ApiClient.dio.get<Map<String, dynamic>>(
+            '/api/vendor-evaluations/${widget.requestId}/recommendation',
+          );
+          if (evalRes.data != null) {
+            evalSummary = ProcurementEvaluationSummaryDto.fromJson(evalRes.data!);
+          }
+        } catch (_) {
+          // 404 is normal if not evaluated yet
+        }
+      }
+
+      setState(() {
+        _request = req;
+        _evaluationSummary = evalSummary;
+      });
     } catch (_) {
       setState(() { _error = 'Request not found or access denied.'; });
     } finally {
@@ -201,6 +224,53 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           ],
         ),
 
+        // Employee Business Status Guidance
+        if (!isDraft) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _statusColors[r.status]?.withValues(alpha: 0.1) ?? Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: _statusColors[r.status]?.withValues(alpha: 0.3) ?? Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  r.status == 'APPROVED' || r.status == 'COMPLETED'
+                      ? Icons.check_circle_outline
+                      : (r.status == 'REJECTED' ? Icons.cancel_outlined : (r.status == 'REVISION_REQUESTED' ? Icons.error_outline : Icons.info_outline)),
+                  color: _statusColors[r.status] ?? Colors.grey,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    r.status == 'SUBMITTED'
+                        ? 'Your request has been submitted and is currently queued for procurement team review.'
+                        : (r.status == 'UNDER_EVALUATION'
+                            ? 'The procurement team is actively reviewing quotes and evaluating vendors.'
+                            : (r.status == 'PENDING_APPROVAL'
+                                ? 'Vendor evaluation has been completed. This request is now awaiting manager approval.'
+                                : (r.status == 'REVISION_REQUESTED'
+                                    ? 'A manager has requested changes. Please review any decision comments below, then click "Return to Draft" to make edits.'
+                                    : (r.status == 'APPROVED'
+                                        ? 'This procurement request has been approved by management.'
+                                        : (r.status == 'REJECTED'
+                                            ? 'This procurement request was not approved.'
+                                            : 'Procurement orders and fulfillment have been finalized.'))))),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _statusColors[r.status] ?? Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         const Divider(),
         _detail('Request Number', r.requestNumber),
         _detail('Priority', formatStatus(r.priority)),
@@ -231,6 +301,22 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             ),
           ),
         )),
+
+        // Vendor Evaluation & Recommendation (Status-Gated)
+        VendorRecommendationCard(
+          summary: _evaluationSummary,
+          requestStatus: r.status,
+          userRole: role,
+        ),
+
+        // Approval Workflow Management (shown only for submitted/reviewed requests, never for unsubmitted drafts)
+        if (!isDraft) ...[
+          const SizedBox(height: 12),
+          ApprovalWorkflowCard(
+            requestId: widget.requestId,
+            onStatusChanged: _load,
+          ),
+        ],
       ],
     );
   }

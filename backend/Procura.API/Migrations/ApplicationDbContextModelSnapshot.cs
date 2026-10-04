@@ -83,6 +83,158 @@ namespace Procura.API.Migrations
                     b.ToTable("WorkflowInstances");
                 });
 
+            modelBuilder.Entity("Procura.API.Modules.ApprovalWorkflow.Entities.AIAgentExecution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AgentName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ApprovalWorkflowId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ExecutionOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ExecutionStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("InputSummary")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OutputSummary")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ToolExecutionMetadata")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ValidationResult")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovalWorkflowId");
+
+                    b.ToTable("AIAgentExecutions");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.ApprovalWorkflow.Entities.ApprovalDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApprovalWorkflowId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Comments")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ManagerId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovalWorkflowId");
+
+                    b.HasIndex("ManagerId");
+
+                    b.ToTable("ApprovalDecisions");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.ApprovalWorkflow.Entities.ApprovalWorkflow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CurrentStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProcurementRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcurementRequestId")
+                        .IsUnique();
+
+                    b.ToTable("ApprovalWorkflows");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.ApprovalWorkflow.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApprovalWorkflowId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRead")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RecipientUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovalWorkflowId");
+
+                    b.HasIndex("IsRead");
+
+                    b.HasIndex("RecipientUserId");
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("Procura.API.Modules.ProcurementRequest.Entities.ProcurementRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -174,6 +326,124 @@ namespace Procura.API.Migrations
                     b.HasIndex("ProcurementRequestId");
 
                     b.ToTable("ProcurementRequestItems");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.VendorEvaluation.Entities.VendorEvaluation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("GeneratedByAgent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<decimal>("OverallScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<Guid>("ProcurementRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Reasoning")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RiskFlags")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VendorId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcurementRequestId");
+
+                    b.HasIndex("VendorId");
+
+                    b.HasIndex("ProcurementRequestId", "VendorId");
+
+                    b.ToTable("VendorEvaluations");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.VendorEvaluation.Entities.VendorEvaluationCriterionScore", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CriterionName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Score")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<Guid>("VendorEvaluationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Weight")
+                        .HasPrecision(4, 3)
+                        .HasColumnType("decimal(4,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VendorEvaluationId");
+
+                    b.ToTable("VendorEvaluationCriterionScores");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.VendorEvaluation.Entities.VendorQuote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EstimatedDeliveryDays")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsComplianceApproved")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProcurementRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("QuotedPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ReliabilityRating")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<Guid>("VendorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("VendorName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("VendorQuotes");
                 });
 
             modelBuilder.Entity("Procura.API.Modules.VendorManagement.Entities.Vendor", b =>
@@ -302,6 +572,66 @@ namespace Procura.API.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Procura.API.Modules.ApprovalWorkflow.Entities.AIAgentExecution", b =>
+                {
+                    b.HasOne("Procura.API.Modules.ApprovalWorkflow.Entities.ApprovalWorkflow", "ApprovalWorkflow")
+                        .WithMany("AIAgentExecutions")
+                        .HasForeignKey("ApprovalWorkflowId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApprovalWorkflow");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.ApprovalWorkflow.Entities.ApprovalDecision", b =>
+                {
+                    b.HasOne("Procura.API.Modules.ApprovalWorkflow.Entities.ApprovalWorkflow", "ApprovalWorkflow")
+                        .WithMany("Decisions")
+                        .HasForeignKey("ApprovalWorkflowId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Procura.API.Shared.Entities.User", "Manager")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ApprovalWorkflow");
+
+                    b.Navigation("Manager");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.ApprovalWorkflow.Entities.ApprovalWorkflow", b =>
+                {
+                    b.HasOne("Procura.API.Modules.ProcurementRequest.Entities.ProcurementRequest", "ProcurementRequest")
+                        .WithOne("ApprovalWorkflow")
+                        .HasForeignKey("Procura.API.Modules.ApprovalWorkflow.Entities.ApprovalWorkflow", "ProcurementRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProcurementRequest");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.ApprovalWorkflow.Entities.Notification", b =>
+                {
+                    b.HasOne("Procura.API.Modules.ApprovalWorkflow.Entities.ApprovalWorkflow", "ApprovalWorkflow")
+                        .WithMany("Notifications")
+                        .HasForeignKey("ApprovalWorkflowId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Procura.API.Shared.Entities.User", "RecipientUser")
+                        .WithMany()
+                        .HasForeignKey("RecipientUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ApprovalWorkflow");
+
+                    b.Navigation("RecipientUser");
+                });
+
             modelBuilder.Entity("Procura.API.Modules.ProcurementRequest.Entities.ProcurementRequest", b =>
                 {
                     b.HasOne("Procura.API.Shared.Entities.User", "Requester")
@@ -324,9 +654,36 @@ namespace Procura.API.Migrations
                     b.Navigation("ProcurementRequest");
                 });
 
+            modelBuilder.Entity("Procura.API.Modules.VendorEvaluation.Entities.VendorEvaluationCriterionScore", b =>
+                {
+                    b.HasOne("Procura.API.Modules.VendorEvaluation.Entities.VendorEvaluation", "VendorEvaluation")
+                        .WithMany("CriterionScores")
+                        .HasForeignKey("VendorEvaluationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("VendorEvaluation");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.ApprovalWorkflow.Entities.ApprovalWorkflow", b =>
+                {
+                    b.Navigation("AIAgentExecutions");
+
+                    b.Navigation("Decisions");
+
+                    b.Navigation("Notifications");
+                });
+
             modelBuilder.Entity("Procura.API.Modules.ProcurementRequest.Entities.ProcurementRequest", b =>
                 {
+                    b.Navigation("ApprovalWorkflow");
+
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Procura.API.Modules.VendorEvaluation.Entities.VendorEvaluation", b =>
+                {
+                    b.Navigation("CriterionScores");
                 });
 #pragma warning restore 612, 618
         }

@@ -217,6 +217,34 @@ export default function CreateRequestPage() {
     submitManual(dto);
   };
 
+  const handleStartAi = () => {
+    const trimmed = aiObjective.trim();
+    if (!trimmed) {
+      setAiError('Please describe what you need to procure.');
+      return;
+    }
+    if (trimmed.length > 4000) {
+      setAiError('Objective cannot exceed 4000 characters.');
+      return;
+    }
+    setAiError(null);
+    startAi();
+  };
+
+  const handleContinueAi = () => {
+    const trimmed = clarificationAnswer.trim();
+    if (!trimmed) {
+      setAiError('Please provide an answer before submitting.');
+      return;
+    }
+    if (trimmed.length > 4000) {
+      setAiError('Answer cannot exceed 4000 characters.');
+      return;
+    }
+    setAiError(null);
+    continueAi();
+  };
+
   // Sanitize errors array from AI workflow
   const getSanitizedAiErrors = (errors: string[]) => {
     const raw = Array.from(new Set(errors));
@@ -329,7 +357,7 @@ export default function CreateRequestPage() {
                     <button
                       type="button"
                       className={styles.btnAiAction}
-                      onClick={() => continueAi()}
+                      onClick={handleContinueAi}
                       disabled={isAiContinuing || !clarificationAnswer.trim()}
                     >
                       {isAiContinuing ? 'Sending…' : 'Send Answer'}
@@ -366,7 +394,7 @@ export default function CreateRequestPage() {
                 <button
                   type="button"
                   className={styles.btnAiAction}
-                  onClick={() => startAi()}
+                  onClick={handleStartAi}
                   disabled={isAiStarting || !aiObjective.trim()}
                 >
                   {isAiStarting ? 'Creating Draft with AI…' : '🤖 Create Draft with AI'}

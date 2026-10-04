@@ -6,6 +6,7 @@ import '../models/api_models.dart';
 import '../utils/formatters.dart';
 import 'request_detail_screen.dart';
 import 'create_request_screen.dart';
+import 'pending_approvals_screen.dart';
 
 class RequestsListScreen extends StatefulWidget {
   const RequestsListScreen({super.key});
@@ -68,6 +69,7 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final canCreate = auth.user?.role == 'EMPLOYEE';
+    final isManagerOrAdmin = auth.user?.role == 'MANAGER' || auth.user?.role == 'ADMIN';
 
     return Scaffold(
       appBar: AppBar(
@@ -83,6 +85,15 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
             onPressed: _loadRequests,
             tooltip: 'Refresh',
           ),
+          if (isManagerOrAdmin)
+            IconButton(
+              icon: const Icon(Icons.fact_check_outlined),
+              tooltip: 'Pending Approvals',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PendingApprovalsScreen()),
+              ),
+            ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
             tooltip: 'Filter by status',

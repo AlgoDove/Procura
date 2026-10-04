@@ -20,6 +20,14 @@ namespace Procura.API.AI.Persistence
             return await _context.WorkflowInstances.SingleOrDefaultAsync(w => w.Id == id);
         }
 
+        public async Task<WorkflowInstance?> GetByProcurementRequestIdAsync(Guid procurementRequestId)
+        {
+            return await _context.WorkflowInstances
+                .Where(w => w.ProcurementRequestId == procurementRequestId)
+                .OrderByDescending(w => w.UpdatedAt)
+                .FirstOrDefaultAsync();
+        }
+
         public async Task AddAsync(WorkflowInstance instance)
         {
             await _context.WorkflowInstances.AddAsync(instance);

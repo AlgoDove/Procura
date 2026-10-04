@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Procura.API.AI.Agents.ProcurementRequest;
 using Procura.API.AI.Agents.VendorManagement;
+using Procura.API.AI.Agents.VendorEvaluation;
 using Procura.API.AI.Core;
 using Procura.API.AI.Entities;
 using Procura.API.AI.Orchestration;
@@ -19,6 +20,7 @@ namespace Procura.API.Tests.AI
         private readonly Mock<IWorkflowRepository> _workflowRepoMock;
         private readonly Mock<IProcurementRequestAgent> _agentMock;
         private readonly Mock<IVendorManagementAgent> _vendorAgentMock;
+        private readonly Mock<IVendorEvaluationAgent> _evalAgentMock;
         private readonly Mock<ILogger<CentralOrchestrator>> _loggerMock;
         private readonly CentralOrchestrator _orchestrator;
 
@@ -27,6 +29,7 @@ namespace Procura.API.Tests.AI
             _workflowRepoMock = new Mock<IWorkflowRepository>();
             _agentMock = new Mock<IProcurementRequestAgent>();
             _vendorAgentMock = new Mock<IVendorManagementAgent>();
+            _evalAgentMock = new Mock<IVendorEvaluationAgent>();
             _loggerMock = new Mock<ILogger<CentralOrchestrator>>();
 
             _agentMock.Setup(a => a.AgentName).Returns("ProcurementRequestAgent");
@@ -35,10 +38,14 @@ namespace Procura.API.Tests.AI
             _vendorAgentMock.Setup(a => a.AgentName).Returns("VendorManagementAgent");
             _vendorAgentMock.Setup(a => a.Stage).Returns(WorkflowStage.VENDOR_SELECTION);
 
+            _evalAgentMock.Setup(a => a.AgentName).Returns("VendorEvaluationAgent");
+            _evalAgentMock.Setup(a => a.Stage).Returns(WorkflowStage.VENDOR_EVALUATION);
+
             _orchestrator = new CentralOrchestrator(
                 _workflowRepoMock.Object,
                 _agentMock.Object,
                 _vendorAgentMock.Object,
+                _evalAgentMock.Object,
                 _loggerMock.Object);
         }
 
@@ -437,6 +444,169 @@ namespace Procura.API.Tests.AI
             Assert.Equal(WorkflowStatus.STAGE_COMPLETED, stage2Context.Status);
             Assert.Equal(StepStatus.COMPLETED, stage2Context.Plan.Steps[1].Status);
             Assert.Equal(StepStatus.NOT_STARTED, stage2Context.Plan.Steps[2].Status);
+        }
+
+        [Fact]
+        public async Task ProcessWorkflowAsync_WhenStageIsVendorEvaluation_DelegatesToEvaluationAgent_AndTransitionsToApprovalWorkflow()
+        {
+            // Arrange
+            var workflowId = Guid.NewGuid();
+            var requesterId = Guid.NewGuid();
+            var requestId = Guid.NewGuid();
+            var objective = "Evaluate received vendor quotes";
+
+            var existingContext = new WorkflowContext
+            {
+                WorkflowId = workflowId,
+                RequesterId = requesterId,
+                RequesterRole = "EMPLOYEE",
+                CurrentStage = WorkflowStage.VENDOR_EVALUATION,
+                Status = WorkflowStatus.STAGE_COMPLETED,
+                ProcurementRequestId = requestId,
+                RequestNumber = "PR-2026-00015"
+            };
+
+            var contextJson = System.Text.Json.JsonSerializer.Serialize(existingContext);
+            var existingInstance = new WorkflowInstance
+            {
+                Id = workflowId,
+                RequesterId = requesterId,
+                ContextJson = contextJson
+            };
+
+            _workflowRepoMock.Setup(r => r.GetByIdAsync(workflowId)).ReturnsAsync(existingInstance);
+
+            var evalResult = new AgentResult
+            {
+                Status = AgentExecutionStatus.COMPLETED,
+                ExecutionSummary = "Successfully evaluated 3 quotes. Best vendor: Apex Supplies (Score: 92.5).",
+                ProcurementRequestId = requestId,
+                RequestNumber = "PR-2026-00015"
+            };
+
+            _evalAgentMock
+                .Setup(a => a.ExecuteAsync(It.IsAny<WorkflowContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(evalResult);
+
+            // Act
+            var resultContext = await _orchestrator.ProcessWorkflowAsync(
+                objective,
+                requesterId,
+                "EMPLOYEE",
+                workflowId: workflowId);
+
+            // Assert
+            Assert.Equal(WorkflowStage.APPROVAL_WORKFLOW, resultContext.CurrentStage);
+            Assert.Equal(WorkflowStatus.STAGE_COMPLETED, resultContext.Status);
+            Assert.Equal(StepStatus.COMPLETED, resultContext.Plan.Steps[2].Status);
+            Assert.Equal(StepStatus.NOT_STARTED, resultContext.Plan.Steps[3].Status);
+            _evalAgentMock.Verify(a => a.ExecuteAsync(It.IsAny<WorkflowContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.Contains(resultContext.AuditTrail, a => a.Action == "AGENT_DELEGATED" && a.Stage == WorkflowStage.VENDOR_EVALUATION);
+            Assert.Contains(resultContext.AuditTrail, a => a.Action == "WORKFLOW_COMPLETED" && a.Stage == WorkflowStage.VENDOR_EVALUATION);
+        }
+
+        [Fact]
+        public async Task ProcessWorkflowAsync_WhenEvaluationAgentNeedsUserInput_PausesWorkflowSafely()
+        {
+            // Arrange
+            var workflowId = Guid.NewGuid();
+            var requesterId = Guid.NewGuid();
+
+            var existingContext = new WorkflowContext
+            {
+                WorkflowId = workflowId,
+                RequesterId = requesterId,
+                RequesterRole = "EMPLOYEE",
+                CurrentStage = WorkflowStage.VENDOR_EVALUATION,
+                Status = WorkflowStatus.STAGE_COMPLETED,
+                ProcurementRequestId = Guid.NewGuid()
+            };
+
+            var contextJson = System.Text.Json.JsonSerializer.Serialize(existingContext);
+            var existingInstance = new WorkflowInstance
+            {
+                Id = workflowId,
+                RequesterId = requesterId,
+                ContextJson = contextJson
+            };
+
+            _workflowRepoMock.Setup(r => r.GetByIdAsync(workflowId)).ReturnsAsync(existingInstance);
+
+            var evalResult = new AgentResult
+            {
+                Status = AgentExecutionStatus.NEEDS_USER_INPUT,
+                ClarificationPrompt = "Please supply missing quote files or prices for Vendor B.",
+                ExecutionSummary = "Waiting for quote clarification."
+            };
+
+            _evalAgentMock
+                .Setup(a => a.ExecuteAsync(It.IsAny<WorkflowContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(evalResult);
+
+            // Act
+            var resultContext = await _orchestrator.ProcessWorkflowAsync(
+                "Evaluate quotes",
+                requesterId,
+                "EMPLOYEE",
+                workflowId: workflowId);
+
+            // Assert
+            Assert.Equal(WorkflowStatus.NEEDS_USER_INPUT, resultContext.Status);
+            Assert.Equal(WorkflowStage.VENDOR_EVALUATION, resultContext.CurrentStage);
+            Assert.Equal("Please supply missing quote files or prices for Vendor B.", resultContext.ClarificationPrompt);
+            Assert.Equal(StepStatus.PENDING, resultContext.Plan.Steps[2].Status);
+        }
+
+        [Fact]
+        public async Task ProcessWorkflowAsync_WhenEvaluationAgentFails_RecordsFailureAndHalts()
+        {
+            // Arrange
+            var workflowId = Guid.NewGuid();
+            var requesterId = Guid.NewGuid();
+
+            var existingContext = new WorkflowContext
+            {
+                WorkflowId = workflowId,
+                RequesterId = requesterId,
+                RequesterRole = "EMPLOYEE",
+                CurrentStage = WorkflowStage.VENDOR_EVALUATION,
+                Status = WorkflowStatus.STAGE_COMPLETED,
+                ProcurementRequestId = Guid.NewGuid()
+            };
+
+            var contextJson = System.Text.Json.JsonSerializer.Serialize(existingContext);
+            var existingInstance = new WorkflowInstance
+            {
+                Id = workflowId,
+                RequesterId = requesterId,
+                ContextJson = contextJson
+            };
+
+            _workflowRepoMock.Setup(r => r.GetByIdAsync(workflowId)).ReturnsAsync(existingInstance);
+
+            var evalResult = new AgentResult
+            {
+                Status = AgentExecutionStatus.FAILED,
+                ExecutionSummary = "Scoring engine threw an unexpected error.",
+                ErrorMessages = new List<string> { "Scoring calculation failed." }
+            };
+
+            _evalAgentMock
+                .Setup(a => a.ExecuteAsync(It.IsAny<WorkflowContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(evalResult);
+
+            // Act
+            var resultContext = await _orchestrator.ProcessWorkflowAsync(
+                "Evaluate quotes",
+                requesterId,
+                "EMPLOYEE",
+                workflowId: workflowId);
+
+            // Assert
+            Assert.Equal(WorkflowStatus.FAILED, resultContext.Status);
+            Assert.Equal(WorkflowStage.VENDOR_EVALUATION, resultContext.CurrentStage);
+            Assert.Contains("Scoring calculation failed.", resultContext.Errors);
+            Assert.Equal(StepStatus.FAILED, resultContext.Plan.Steps[2].Status);
         }
     }
 }

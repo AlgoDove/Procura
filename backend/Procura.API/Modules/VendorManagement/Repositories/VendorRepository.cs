@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Procura.API.Modules.VendorManagement.Entities;
+using Procura.API.Modules.VendorManagement.Enums;
 using Procura.API.Shared.Data;
 
 namespace Procura.API.Modules.VendorManagement.Repositories
@@ -33,9 +34,9 @@ namespace Procura.API.Modules.VendorManagement.Repositories
         {
             var query = _context.Vendors.AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(status))
+            if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<VendorStatus>(status, true, out var statusEnum))
             {
-                query = query.Where(v => v.Status.ToString() == status);
+                query = query.Where(v => v.Status == statusEnum);
             }
 
             if (!string.IsNullOrWhiteSpace(category))

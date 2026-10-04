@@ -24,6 +24,8 @@ namespace Procura.API.Shared.Authentication
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
             if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
             {
                 return Conflict("User with this email already exists.");
@@ -47,6 +49,8 @@ namespace Procura.API.Shared.Authentication
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
             var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == dto.Email);
             if (user == null || !user.IsActive || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             {
