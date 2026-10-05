@@ -9,6 +9,8 @@ import {
   updateProcurementRequestStatus,
   getWorkflowForRequest,
   processAiWorkflow,
+  getApprovalWorkflowByRequestId,
+  transitionApprovalWorkflow,
 } from '../../api/endpoints';
 import type {
   RequestStatus,
@@ -180,24 +182,41 @@ export default function VendorEvaluationSection({
       setTimeout(() => setFeedbackMessage(null), 5000);
     },
     onError: (err: unknown) => {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setErrorMessage(axiosErr.response?.data?.message ?? 'Failed to run evaluation.');
+      const axiosErr = err as {
+        response?: {
+          status?: number;
+          data?: { message?: string; detail?: string; title?: string };
+        };
+      };
+      const status = axiosErr.response?.status;
+      const detail =
+        axiosErr.response?.data?.detail ??
+        axiosErr.response?.data?.message ??
+        axiosErr.response?.data?.title;
+
+      if (status === 403) {
+        setErrorMessage('Access Denied: Your user role is not authorized to run vendor evaluations.');
+      } else {
+        setErrorMessage(detail ? `Evaluation failed: ${detail}` : 'Failed to run evaluation.');
+      }
     },
   });
 
   // Mutation: Run AI Evaluation (via the real agent/orchestrator workflow)
   const runAiEvaluationMutation = useMutation({
     mutationFn: async (objective: string) => {
-      const workflow = await getWorkflowForRequest(procurementRequestId);
-      if (workflow.currentStage !== 'VENDOR_EVALUATION') {
-        throw new Error(
-          `This request's AI workflow hasn't reached the evaluation stage yet (currently: ${workflow.currentStage}). Vendor selection must complete first.`
-        );
+      let workflowId: string | undefined;
+      try {
+        const workflow = await getWorkflowForRequest(procurementRequestId);
+        workflowId = workflow?.workflowId;
+      } catch {
+        // No existing workflow yet; orchestrator will initialize automatically
       }
+
       return processAiWorkflow({
         objective,
         existingRequestId: procurementRequestId,
-        workflowId: workflow.workflowId,
+        workflowId,
       });
     },
     onSuccess: async (data) => {
@@ -267,11 +286,22 @@ export default function VendorEvaluationSection({
 
   // Mutation: Submit Recommendation for Approval
   const submitForApprovalMutation = useMutation({
-    mutationFn: () => updateProcurementRequestStatus(procurementRequestId, 'PENDING_APPROVAL'),
+    mutationFn: async () => {
+      await updateProcurementRequestStatus(procurementRequestId, 'PENDING_APPROVAL');
+      try {
+        const wf = await getApprovalWorkflowByRequestId(procurementRequestId);
+        if (wf && wf.currentStatus !== 'WAITING_MANAGER_APPROVAL' && wf.currentStatus !== 'APPROVED') {
+          await transitionApprovalWorkflow(wf.id, 'WAITING_MANAGER_APPROVAL');
+        }
+      } catch {
+        // Safe fallback if approval workflow is not yet initialized or already transitioned
+      }
+    },
     onSuccess: () => {
       setFeedbackMessage('Recommendation submitted for manager approval!');
       queryClient.invalidateQueries({ queryKey: ['procurement-request', procurementRequestId] });
       queryClient.invalidateQueries({ queryKey: ['procurement-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['approval-workflow', procurementRequestId] });
       setTimeout(() => setFeedbackMessage(null), 5000);
     },
     onError: (err: unknown) => {

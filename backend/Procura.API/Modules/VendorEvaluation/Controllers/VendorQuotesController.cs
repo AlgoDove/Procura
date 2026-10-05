@@ -7,8 +7,7 @@ namespace Procura.API.Modules.VendorEvaluation.Controllers;
 
 [ApiController]
 [Route("api/vendor-quotes")]
-[Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
-[Authorize]
+[Authorize(Roles = "PROCUREMENT_OFFICER,MANAGER,ADMIN")]
 public class VendorQuotesController : ControllerBase
 {
     private readonly IVendorQuoteService _quoteService;

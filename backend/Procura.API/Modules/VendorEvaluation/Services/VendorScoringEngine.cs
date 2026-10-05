@@ -53,7 +53,7 @@ public class VendorScoringEngine : IVendorScoringEngine
             {
                 priceScore = Math.Round(Math.Min(100m, (minPrice / candidate.QuotedPrice) * 100m), 2);
             }
-            if (estimatedBudget.HasValue && candidate.QuotedPrice > estimatedBudget.Value)
+            if (estimatedBudget.HasValue && estimatedBudget.Value > 0 && candidate.QuotedPrice > estimatedBudget.Value)
             {
                 var overBudgetPercent = Math.Round(((candidate.QuotedPrice - estimatedBudget.Value) / estimatedBudget.Value) * 100m, 1);
                 riskFlags.Add($"Quoted price of {candidate.QuotedPrice:C} exceeds estimated budget of {estimatedBudget.Value:C} by {overBudgetPercent}%.");

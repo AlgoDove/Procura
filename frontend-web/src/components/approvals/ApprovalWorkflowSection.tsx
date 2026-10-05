@@ -149,6 +149,23 @@ export default function ApprovalWorkflowSection({ requestId }: ApprovalWorkflowS
   const step2Done = isPendingManager || isApproved || isRejected || isRevision;
   const step3Done = isApproved || isRejected || isRevision;
 
+  const canSubmitToManager =
+    (isOfficer || isManager || isAdmin) &&
+    (isEvaluation || currentStatus === 'AI_RECOMMENDATION_GENERATED' || currentStatus === 'SUBMITTED' || currentStatus === 'DRAFT');
+
+  // Resolve friendly vendor display name for the summary text
+  const topEval = workflow.vendorRecommendationSummary?.rankedEvaluations?.[0];
+  let formattedSummary = workflow.vendorRecommendationSummary?.recommendationSummary;
+
+  if (formattedSummary && topEval) {
+    const guidMatch = formattedSummary.match(/Vendor\s+([0-9a-fA-F-]{36})/i);
+    if (guidMatch) {
+      const nameMatch = topEval.reasoning?.match(/^([A-Za-z0-9\s&.-]+?)\s+(?:achieved|offered|scored|was ranked)/i);
+      const cleanName = nameMatch ? nameMatch[1].trim() : `Vendor ${topEval.vendorId.slice(0, 8)}`;
+      formattedSummary = formattedSummary.replace(guidMatch[0], cleanName);
+    }
+  }
+
   return (
     <div className={styles.container}>
       {actionError && <div className={styles.errorBanner}>{actionError}</div>}
@@ -251,29 +268,65 @@ export default function ApprovalWorkflowSection({ requestId }: ApprovalWorkflowS
             </div>
 
             <p className={styles.aiSummaryText}>
-              {workflow.vendorRecommendationSummary.recommendationSummary}
+              {formattedSummary || workflow.vendorRecommendationSummary.recommendationSummary}
             </p>
 
             {workflow.vendorRecommendationSummary.rankedEvaluations?.length > 0 && (
               <div className={styles.vendorList}>
-                {workflow.vendorRecommendationSummary.rankedEvaluations.map((e) => (
-                  <div key={e.id} className={styles.vendorItem}>
-                    <div className={styles.vendorRank}>
-                      <span className={styles.rankBadge}>#{e.rank}</span>
-                      <div>
-                        <strong>Overall Score: {e.overallScore.toFixed(1)}</strong>
-                        <div className={styles.vendorReasoning}>{e.reasoning}</div>
+                {workflow.vendorRecommendationSummary.rankedEvaluations.map((e) => {
+                  const evalNameMatch = e.reasoning?.match(/^([A-Za-z0-9\s&.-]+?)\s+(?:achieved|offered|scored|was ranked)/i);
+                  const evalVendorName = evalNameMatch ? evalNameMatch[1].trim() : `Vendor ${e.vendorId.slice(0, 8)}`;
+                  return (
+                    <div key={e.id} className={styles.vendorItem}>
+                      <div className={styles.vendorRank}>
+                        <span className={styles.rankBadge}>#{e.rank}</span>
+                        <div>
+                          <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '0.2rem' }}>
+                            {evalVendorName}
+                          </div>
+                          <strong>Overall Score: {e.overallScore.toFixed(1)}</strong>
+                          <div className={styles.vendorReasoning}>{e.reasoning}</div>
+                        </div>
                       </div>
+                      {e.riskFlags && e.riskFlags.length > 0 && (
+                        <span className={styles.riskFlag}>
+                          {e.riskFlags.join(', ')}
+                        </span>
+                      )}
                     </div>
-                    {e.riskFlags && e.riskFlags.length > 0 && (
-                      <span className={styles.riskFlag}>
-                        {e.riskFlags.join(', ')}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
+
+            {/* AI Summary Action / Status Row */}
+            <div className={styles.aiActionRow}>
+              {canSubmitToManager && (
+                <button
+                  type="button"
+                  className={styles.btnSubmitForApproval}
+                  onClick={() => transitionMutation.mutate('WAITING_MANAGER_APPROVAL')}
+                  disabled={transitionMutation.isPending}
+                >
+                  <span>🚀</span>
+                  <span>{transitionMutation.isPending ? 'Submitting…' : 'Submit Evaluation for Approval'}</span>
+                </button>
+              )}
+
+              {isPendingManager && (
+                <div className={styles.statusNotePending}>
+                  <span>⏳</span>
+                  <span>Evaluation submitted for manager approval. Manager review required below.</span>
+                </div>
+              )}
+
+              {isApproved && (
+                <div className={styles.statusNoteApproved}>
+                  <span>✓</span>
+                  <span>Recommendation approved by Manager!</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -310,12 +363,12 @@ export default function ApprovalWorkflowSection({ requestId }: ApprovalWorkflowS
           </div>
         )}
 
-        {/* PO Transition Progression */}
-        {(isOfficer || isAdmin) && isEvaluation && (
+        {/* Workflow Progression Panel */}
+        {(isOfficer || isManager || isAdmin) && (isEvaluation || currentStatus === 'AI_RECOMMENDATION_GENERATED') && (
           <div className={styles.actionPanel}>
-            <h4 className={styles.actionPanelTitle}>Procurement Officer Progression</h4>
+            <h4 className={styles.actionPanelTitle}>Workflow Progression</h4>
             <p className={styles.actionPanelNotice}>
-              Vendor evaluation is in progress. Once candidate quotes and scoring are validated, submit this workflow to the Manager for approval.
+              Vendor evaluation is in progress or completed. Once candidate quotes and scoring are validated, submit this workflow to the Manager for approval.
             </p>
             <button
               type="button"
