@@ -137,7 +137,7 @@ namespace Procura.API.Modules.ApprovalWorkflow.Controllers
         /// Initializes a new approval workflow for a procurement request.
         /// </summary>
         [HttpPost("initialize")]
-        [Authorize(Roles = "EMPLOYEE,PROCUREMENT_OFFICER,ADMIN")]
+        [Authorize(Roles = "EMPLOYEE,PROCUREMENT_OFFICER,MANAGER,ADMIN")]
         [ProducesResponseType(typeof(ApprovalWorkflowResponseDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -171,7 +171,7 @@ namespace Procura.API.Modules.ApprovalWorkflow.Controllers
         /// Advances the approval workflow through intermediate stages (e.g., to UNDER_VENDOR_EVALUATION or WAITING_MANAGER_APPROVAL).
         /// </summary>
         [HttpPost("{id:guid}/transition")]
-        [Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
+        [Authorize(Roles = "PROCUREMENT_OFFICER,MANAGER,ADMIN")]
         [ProducesResponseType(typeof(ApprovalWorkflowResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

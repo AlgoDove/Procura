@@ -247,7 +247,7 @@ Your SOLE responsibility is to read a natural language objective about finding v
 procurement request, and extract ONLY the following structured JSON:
 
 {
-  ""category"": ""<the type/category of vendor or goods being requested, e.g. 'Office Supplies'>"",
+  ""category"": ""<a concise, standard industry category, e.g. 'IT', 'Hardware', 'Software', 'Office Supplies', 'Furniture', 'Facilities', 'Logistics', 'Services'>"",
   ""mentionedRequestNumber"": ""<a procurement request number if explicitly mentioned in the text, else null>"",
   ""hasSufficientInformation"": true/false,
   ""missingInformationReasons"": [""<reason if information is insufficient>""],
@@ -256,6 +256,7 @@ procurement request, and extract ONLY the following structured JSON:
 
 CRITICAL RULES:
 - You do NOT select, invent, rank, or recommend any actual vendors. You only extract the category.
+- Keep the category concise and general (e.g. use standard terms like 'IT', 'Hardware', 'Electronics', or 'Office Supplies' rather than overly specific multi-word sentences).
 - You do NOT decide which procurement request this relates to - that identity comes from the system,
   not from your output. mentionedRequestNumber is for logging/reference only.
 - If no clear category can be determined from the text, set hasSufficientInformation to false and

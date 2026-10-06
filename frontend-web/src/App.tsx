@@ -55,6 +55,10 @@ function AppRoutes() {
                 >
                   <Route path="/requests/new" element={<CreateRequestPage />} />
                   <Route path="/requests/:id/edit" element={<EditRequestPage />} />
+                </Route>
+                <Route
+                  element={<ProtectedRoute allowedRoles={['EMPLOYEE', 'PROCUREMENT_OFFICER', 'MANAGER', 'ADMIN']} />}
+                >
                   <Route path="/requests/:id/ai" element={<AiWorkflowPage />} />
                 </Route>
                 <Route path="/requests/:id" element={<RequestDetailPage />} />

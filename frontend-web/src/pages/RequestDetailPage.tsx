@@ -183,6 +183,10 @@ export default function RequestDetailPage() {
             </Link>
           )}
 
+          <Link to={`/requests/${id}/ai`} className={styles.btnSecondary} title="View AI Agent Workflow and live audit trail">
+            🤖 AI Pipeline
+          </Link>
+
 
 
           {/* Revision return to draft */}

@@ -20,11 +20,13 @@ namespace Procura.API.Modules.ApprovalWorkflow.Services
             },
             [WorkflowState.SUBMITTED] = new HashSet<WorkflowState>
             {
-                WorkflowState.UNDER_VENDOR_EVALUATION
+                WorkflowState.UNDER_VENDOR_EVALUATION,
+                WorkflowState.WAITING_MANAGER_APPROVAL
             },
             [WorkflowState.UNDER_VENDOR_EVALUATION] = new HashSet<WorkflowState>
             {
-                WorkflowState.AI_RECOMMENDATION_GENERATED
+                WorkflowState.AI_RECOMMENDATION_GENERATED,
+                WorkflowState.WAITING_MANAGER_APPROVAL
             },
             [WorkflowState.AI_RECOMMENDATION_GENERATED] = new HashSet<WorkflowState>
             {
@@ -81,14 +83,14 @@ namespace Procura.API.Modules.ApprovalWorkflow.Services
                 return true;
             }
 
-            // Routing to Vendor Evaluation or AI Recommendation stages
+            // Routing to Vendor Evaluation, AI Recommendation, or Manager Approval stages
             if (targetStatus == WorkflowState.UNDER_VENDOR_EVALUATION || 
                 targetStatus == WorkflowState.AI_RECOMMENDATION_GENERATED ||
                 targetStatus == WorkflowState.WAITING_MANAGER_APPROVAL)
             {
-                if (role != "PROCUREMENT_OFFICER" && role != "ADMIN")
+                if (role != "PROCUREMENT_OFFICER" && role != "ADMIN" && role != "MANAGER")
                 {
-                    failureReason = $"Role '{userRole}' is not authorized to transition workflow to {targetStatus}. Requires PROCUREMENT_OFFICER or ADMIN.";
+                    failureReason = $"Role '{userRole}' is not authorized to transition workflow to {targetStatus}. Requires PROCUREMENT_OFFICER, MANAGER, or ADMIN.";
                     return false;
                 }
                 return true;

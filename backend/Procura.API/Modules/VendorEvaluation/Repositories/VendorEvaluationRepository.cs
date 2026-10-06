@@ -73,12 +73,14 @@ public class VendorEvaluationRepository : IVendorEvaluationRepository
     public async Task DeleteByProcurementRequestIdAsync(Guid procurementRequestId, CancellationToken cancellationToken = default)
     {
         var evaluations = await _context.VendorEvaluations
+            .Include(e => e.CriterionScores)
             .Where(e => e.ProcurementRequestId == procurementRequestId)
             .ToListAsync(cancellationToken);
 
         if (evaluations.Count != 0)
         {
             _context.VendorEvaluations.RemoveRange(evaluations);
+            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 

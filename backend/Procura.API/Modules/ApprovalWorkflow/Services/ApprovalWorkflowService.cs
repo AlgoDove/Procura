@@ -12,6 +12,7 @@ using Procura.API.Modules.ApprovalWorkflow.Repositories;
 using Procura.API.Modules.ProcurementRequest.Enums;
 using Procura.API.Modules.ProcurementRequest.Repositories;
 using Procura.API.Modules.VendorEvaluation.Services;
+using Procura.API.Integrations.Email;
 
 namespace Procura.API.Modules.ApprovalWorkflow.Services
 {
@@ -25,6 +26,7 @@ namespace Procura.API.Modules.ApprovalWorkflow.Services
         private readonly IProcurementRequestRepository _procurementRequestRepository;
         private readonly IWorkflowStateTransitionEngine _transitionEngine;
         private readonly IVendorEvaluationService? _vendorEvaluationService;
+        private readonly IEmailService? _emailService;
         private readonly ILogger<ApprovalWorkflowService> _logger;
 
         public ApprovalWorkflowService(
@@ -32,13 +34,15 @@ namespace Procura.API.Modules.ApprovalWorkflow.Services
             IProcurementRequestRepository procurementRequestRepository,
             IWorkflowStateTransitionEngine transitionEngine,
             ILogger<ApprovalWorkflowService> logger,
-            IVendorEvaluationService? vendorEvaluationService = null)
+            IVendorEvaluationService? vendorEvaluationService = null,
+            IEmailService? emailService = null)
         {
             _workflowRepository = workflowRepository ?? throw new ArgumentNullException(nameof(workflowRepository));
             _procurementRequestRepository = procurementRequestRepository ?? throw new ArgumentNullException(nameof(procurementRequestRepository));
             _transitionEngine = transitionEngine ?? throw new ArgumentNullException(nameof(transitionEngine));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _vendorEvaluationService = vendorEvaluationService;
+            _emailService = emailService;
         }
 
         public async Task<ApprovalWorkflowResponseDto?> GetWorkflowByIdAsync(Guid workflowId, Guid userId, string role)
@@ -288,6 +292,43 @@ namespace Procura.API.Modules.ApprovalWorkflow.Services
             await _workflowRepository.SaveChangesAsync();
 
             _logger.LogInformation("ApprovalWorkflow {WorkflowId} APPROVED by Manager {ManagerId}", workflow.Id, managerId);
+
+            // Dispatch transactional approval email (failure must not compromise approval transaction)
+            if (_emailService != null && workflow.ProcurementRequest != null)
+            {
+                var requester = workflow.ProcurementRequest.Requester;
+                var recipientEmail = requester?.Email;
+                if (!string.IsNullOrWhiteSpace(recipientEmail))
+                {
+                    var requesterName = requester != null
+                        ? $"{requester.FirstName} {requester.LastName}".Trim()
+                        : "Requester";
+                    var manager = decision.Manager ?? await _workflowRepository.GetUserByIdAsync(managerId);
+                    var managerName = manager != null
+                        ? $"{manager.FirstName} {manager.LastName}".Trim()
+                        : "Manager";
+
+                    try
+                    {
+                        await _emailService.SendProcurementDecisionEmailAsync(
+                            recipientEmail,
+                            requesterName,
+                            workflow.ProcurementRequest.RequestNumber,
+                            workflow.ProcurementRequest.Title,
+                            "APPROVED",
+                            null,
+                            managerName);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "Failed to send procurement decision email for request {RequestNumber}",
+                            workflow.ProcurementRequest.RequestNumber);
+                    }
+                }
+            }
+
             return await MapToDtoAsync(workflow);
         }
 
@@ -362,6 +403,43 @@ namespace Procura.API.Modules.ApprovalWorkflow.Services
             await _workflowRepository.SaveChangesAsync();
 
             _logger.LogInformation("ApprovalWorkflow {WorkflowId} REJECTED by Manager {ManagerId}. Reason: {Comments}", workflow.Id, managerId, comments);
+
+            // Dispatch transactional rejection email (failure must not compromise rejection transaction)
+            if (_emailService != null && workflow.ProcurementRequest != null)
+            {
+                var requester = workflow.ProcurementRequest.Requester;
+                var recipientEmail = requester?.Email;
+                if (!string.IsNullOrWhiteSpace(recipientEmail))
+                {
+                    var requesterName = requester != null
+                        ? $"{requester.FirstName} {requester.LastName}".Trim()
+                        : "Requester";
+                    var manager = decision.Manager ?? await _workflowRepository.GetUserByIdAsync(managerId);
+                    var managerName = manager != null
+                        ? $"{manager.FirstName} {manager.LastName}".Trim()
+                        : "Manager";
+
+                    try
+                    {
+                        await _emailService.SendProcurementDecisionEmailAsync(
+                            recipientEmail,
+                            requesterName,
+                            workflow.ProcurementRequest.RequestNumber,
+                            workflow.ProcurementRequest.Title,
+                            "REJECTED",
+                            comments.Trim(),
+                            managerName);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "Failed to send procurement decision email for request {RequestNumber}",
+                            workflow.ProcurementRequest.RequestNumber);
+                    }
+                }
+            }
+
             return await MapToDtoAsync(workflow);
         }
 

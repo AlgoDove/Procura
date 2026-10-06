@@ -109,8 +109,12 @@ builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Repositories.IAp
 builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Services.IWorkflowStateTransitionEngine, Procura.API.Modules.ApprovalWorkflow.Services.WorkflowStateTransitionEngine>();
 builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Services.IApprovalWorkflowService, Procura.API.Modules.ApprovalWorkflow.Services.ApprovalWorkflowService>();
 builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Repositories.INotificationRepository, Procura.API.Modules.ApprovalWorkflow.Repositories.NotificationRepository>();
-builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Services.IEmailNotificationService, Procura.API.Modules.ApprovalWorkflow.Services.EmailNotificationService>();
+builder.Services.AddHttpClient<Procura.API.Modules.ApprovalWorkflow.Services.IEmailNotificationService, Procura.API.Modules.ApprovalWorkflow.Services.EmailNotificationService>();
 builder.Services.AddScoped<Procura.API.Modules.ApprovalWorkflow.Services.INotificationService, Procura.API.Modules.ApprovalWorkflow.Services.NotificationService>();
+
+// Dependency Injection - Transactional Email Integration
+builder.Services.Configure<Procura.API.Integrations.Email.ResendOptions>(builder.Configuration.GetSection(Procura.API.Integrations.Email.ResendOptions.SectionName));
+builder.Services.AddHttpClient<Procura.API.Integrations.Email.IEmailService, Procura.API.Integrations.Email.ResendEmailService>();
 
 // Dependency Injection - AI Subsystem
 builder.Services.Configure<GeminiOptions>(options =>
