@@ -118,6 +118,11 @@ namespace Procura.API.Modules.ApprovalWorkflow.Repositories
             return await _context.ApprovalWorkflows.AnyAsync(w => w.Id == id);
         }
 
+        public async Task<Procura.API.Shared.Entities.User?> GetUserByIdAsync(Guid userId)
+        {
+            return await _context.Users.FindAsync(userId);
+        }
+
         public async Task SaveChangesAsync()
         {
             await _context.SaveChangesAsync();

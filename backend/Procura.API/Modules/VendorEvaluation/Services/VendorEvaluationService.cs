@@ -146,7 +146,9 @@ public class VendorEvaluationService : IVendorEvaluationService
             request.CustomWeights);
 
         // 5. Rank candidates deterministically: by overall score descending, then lower quoted price, then higher reliability
-        var metricMap = candidateMetrics.ToDictionary(c => c.VendorId);
+        var metricMap = candidateMetrics
+            .GroupBy(c => c.VendorId)
+            .ToDictionary(g => g.Key, g => g.First());
         var sortedResults = evaluationResults
             .OrderByDescending(r => r.OverallScore)
             .ThenBy(r => metricMap.TryGetValue(r.VendorId, out var m) ? m.QuotedPrice : decimal.MaxValue)
@@ -200,7 +202,12 @@ public class VendorEvaluationService : IVendorEvaluationService
         var responseDtos = evaluationEntities.Select(MapToResponseDto).ToList();
         var topRecommendation = responseDtos.FirstOrDefault();
         var topMetric = topRecommendation != null ? candidateMetrics.FirstOrDefault(c => c.VendorId == topRecommendation.VendorId) : null;
-        var topName = !string.IsNullOrWhiteSpace(topMetric?.VendorName) ? topMetric.VendorName : (topRecommendation != null ? $"Vendor {topRecommendation.VendorId}" : "");
+        string topName = topMetric?.VendorName ?? "";
+        if (string.IsNullOrWhiteSpace(topName) && topRecommendation != null)
+        {
+            var v = await _dbContext.Vendors.FindAsync(new object[] { topRecommendation.VendorId }, cancellationToken);
+            topName = v?.Name ?? $"Vendor {topRecommendation.VendorId}";
+        }
 
         string summaryText = topRecommendation != null
             ? $"{topName} is the top recommended vendor (Rank #1) with an overall score of {topRecommendation.OverallScore:F2}/100. Evaluated {evaluationEntities.Count} candidate(s) in total."
@@ -344,8 +351,32 @@ public class VendorEvaluationService : IVendorEvaluationService
         var responseDtos = evaluations.Select(MapToResponseDto).ToList();
         var topRecommendation = responseDtos.FirstOrDefault();
 
+        string vendorDisplayName = string.Empty;
+        if (topRecommendation != null)
+        {
+            var quote = await _dbContext.VendorQuotes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(q => q.ProcurementRequestId == procurementRequestId && q.VendorId == topRecommendation.VendorId, cancellationToken);
+            if (quote != null && !string.IsNullOrWhiteSpace(quote.VendorName))
+            {
+                vendorDisplayName = quote.VendorName;
+            }
+            else
+            {
+                var vendor = await _dbContext.Vendors.FindAsync(new object[] { topRecommendation.VendorId }, cancellationToken);
+                if (vendor != null && !string.IsNullOrWhiteSpace(vendor.Name))
+                {
+                    vendorDisplayName = vendor.Name;
+                }
+            }
+        }
+
+        string topDisplayName = !string.IsNullOrWhiteSpace(vendorDisplayName)
+            ? vendorDisplayName
+            : (topRecommendation != null ? $"Vendor {topRecommendation.VendorId}" : string.Empty);
+
         string summary = topRecommendation != null
-            ? $"Top recommended candidate is Vendor {topRecommendation.VendorId} (Rank #1) with overall score {topRecommendation.OverallScore:F2}/100. Total {responseDtos.Count} candidate(s) evaluated."
+            ? $"Top recommended candidate is {topDisplayName} (Rank #1) with overall score {topRecommendation.OverallScore:F2}/100. Total {responseDtos.Count} candidate(s) evaluated."
             : "No evaluations found.";
 
         return new ProcurementEvaluationSummaryDto

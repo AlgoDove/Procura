@@ -29,6 +29,39 @@ namespace Procura.API.AI.Agents.VendorManagement.Tools
 
             var vendors = await _vendorService.GetAllAsync(status: "ACTIVE", category: category);
 
+            // If no match on full category phrase, try individual significant words (e.g., "IT Hardware" -> "IT")
+            if (vendors.Count == 0)
+            {
+                var tokens = category.Split(new[] { ' ', '-', '/', ',', '&' }, System.StringSplitOptions.RemoveEmptyEntries);
+                foreach (var token in tokens)
+                {
+                    if (token.Length >= 2)
+                    {
+                        var tokenMatches = await _vendorService.GetAllAsync(status: "ACTIVE", category: token);
+                        if (tokenMatches.Count > 0)
+                        {
+                            vendors = tokenMatches;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // If still no candidates, check if any active vendor's category is contained in the requested category text
+            if (vendors.Count == 0)
+            {
+                var allActive = await _vendorService.GetAllAsync(status: "ACTIVE", category: null);
+                var searchLower = category.Trim().ToLower();
+                var matched = allActive
+                    .Where(v => !string.IsNullOrWhiteSpace(v.Category) && searchLower.Contains(v.Category.Trim().ToLower()))
+                    .ToList();
+
+                if (matched.Count > 0)
+                {
+                    vendors = matched;
+                }
+            }
+
             var candidates = vendors
                 .Select(v => new VendorCandidate
                 {

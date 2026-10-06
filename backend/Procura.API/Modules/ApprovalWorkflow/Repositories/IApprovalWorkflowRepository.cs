@@ -63,6 +63,11 @@ namespace Procura.API.Modules.ApprovalWorkflow.Repositories
         Task<bool> ExistsAsync(Guid id);
 
         /// <summary>
+        /// Retrieves a user entity by ID.
+        /// </summary>
+        Task<Procura.API.Shared.Entities.User?> GetUserByIdAsync(Guid userId);
+
+        /// <summary>
         /// Persists all pending database changes.
         /// </summary>
         Task SaveChangesAsync();

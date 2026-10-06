@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getSelectedVendorsForRequest } from '../../api/endpoints';
+import { getSelectedVendorsForRequest, getVendors } from '../../api/endpoints';
 import type { CreateVendorQuoteDto } from '../../types/api';
 import styles from './AddQuoteModal.module.css';
 
@@ -34,9 +34,19 @@ export default function AddQuoteModal({
     enabled: isOpen && !!procurementRequestId,
   });
 
+  const { data: allActiveVendors, isLoading: isLoadingAllVendors } = useQuery({
+    queryKey: ['vendors', 'ACTIVE'],
+    queryFn: () => getVendors({ status: 'ACTIVE' }),
+    enabled: isOpen,
+  });
+
+  const hasSpecificShortlist = !!(selectedVendors && selectedVendors.length > 0);
+  const availableVendors = hasSpecificShortlist ? selectedVendors! : (allActiveVendors ?? []);
+  const isLoading = isLoadingVendors || isLoadingAllVendors;
+
   useEffect(() => {
-    if (selectedVendorId && selectedVendors) {
-      const v = selectedVendors.find((item) => item.id === selectedVendorId);
+    if (selectedVendorId && availableVendors) {
+      const v = availableVendors.find((item) => item.id === selectedVendorId);
       if (v) {
         setVendorName(v.name);
         if (v.rating) {
@@ -48,7 +58,7 @@ export default function AddQuoteModal({
     } else if (!selectedVendorId) {
       setVendorName('');
     }
-  }, [selectedVendorId, selectedVendors]);
+  }, [selectedVendorId, availableVendors]);
 
   if (!isOpen) return null;
 
@@ -57,7 +67,7 @@ export default function AddQuoteModal({
     setError(null);
 
     if (!selectedVendorId) {
-      setError('Please select a vendor from the list of selected vendors for this request.');
+      setError('Please select a vendor from the list.');
       return;
     }
 
@@ -108,7 +118,9 @@ export default function AddQuoteModal({
           {error && <div className={styles.errorMessage}>{error}</div>}
 
           <div className={styles.formGroup}>
-            <label htmlFor="vendorSelect">Select Vendor (Assigned to this Request) *</label>
+            <label htmlFor="vendorSelect">
+              {hasSpecificShortlist ? 'Select Vendor (Assigned to this Request) *' : 'Select Vendor (Active Vendors) *'}
+            </label>
             <select
               id="vendorSelect"
               className={styles.select}
@@ -117,21 +129,28 @@ export default function AddQuoteModal({
               required
             >
               <option value="">
-                {isLoadingVendors
-                  ? '-- Loading selected vendors... --'
-                  : selectedVendors && selectedVendors.length > 0
-                  ? '-- Choose a selected vendor for this request --'
-                  : '-- No vendors selected for this request yet --'}
+                {isLoading
+                  ? '-- Loading vendors... --'
+                  : availableVendors.length > 0
+                  ? hasSpecificShortlist
+                    ? '-- Choose an assigned vendor for this request --'
+                    : '-- Choose an active vendor --'
+                  : '-- No active vendors found in directory --'}
               </option>
-              {selectedVendors?.map((v) => (
+              {availableVendors.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.name} ({v.category}) - Rating: {v.rating ?? 'N/A'}/5
                 </option>
               ))}
             </select>
-            {selectedVendors && selectedVendors.length === 0 && !isLoadingVendors && (
+            {availableVendors.length === 0 && !isLoading && (
               <p style={{ fontSize: '0.8rem', color: '#e53e3e', marginTop: '0.25rem' }}>
-                Note: No vendors have been selected for this procurement request yet in Vendor Management.
+                Note: No active vendors have been created in the Vendors directory yet.
+              </p>
+            )}
+            {!hasSpecificShortlist && availableVendors.length > 0 && !isLoading && (
+              <p style={{ fontSize: '0.8rem', color: '#0284c7', marginTop: '0.25rem' }}>
+                ℹ️ Showing active vendors from the vendor directory.
               </p>
             )}
           </div>

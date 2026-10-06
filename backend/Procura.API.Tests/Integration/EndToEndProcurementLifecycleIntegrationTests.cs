@@ -291,7 +291,10 @@ namespace Procura.API.Tests.Integration
             // Verify Component 3 summary is cleanly surfaced to Manager
             Assert.NotNull(pendingWorkflow.VendorRecommendationSummary);
             Assert.Equal(vendorA.Id, pendingWorkflow.VendorRecommendationSummary.TopRecommendedVendorId);
-            Assert.Contains(vendorA.Id.ToString(), pendingWorkflow.VendorRecommendationSummary.RecommendationSummary);
+           Assert.Contains(
+    vendorA.Name,
+    pendingWorkflow.VendorRecommendationSummary.RecommendationSummary
+);
 
             // Inspect audit trail prior to decision
             var auditRes = await _client.GetAsync($"/api/approval-workflows/{workflow.Id}/audit-trail");

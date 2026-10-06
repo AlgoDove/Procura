@@ -41,7 +41,8 @@ namespace Procura.API.Modules.VendorManagement.Repositories
 
             if (!string.IsNullOrWhiteSpace(category))
             {
-                query = query.Where(v => v.Category == category);
+                var term = category.Trim().ToLower();
+                query = query.Where(v => v.Category.ToLower().Contains(term));
             }
 
             return await query.OrderByDescending(v => v.CreatedAt).ToListAsync();

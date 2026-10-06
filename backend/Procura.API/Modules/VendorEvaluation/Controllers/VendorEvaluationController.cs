@@ -78,7 +78,7 @@ public class VendorEvaluationController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Executive recommendation summary with ranked candidates.</returns>
     [HttpPost("evaluate")]
-    [Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
+    [Authorize(Roles = "PROCUREMENT_OFFICER,MANAGER,ADMIN")]
     [ProducesResponseType(typeof(ProcurementEvaluationSummaryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -92,9 +92,17 @@ public class VendorEvaluationController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        _logger.LogInformation("Processing evaluation for ProcurementRequest {ProcurementRequestId}", request.ProcurementRequestId);
-        var summary = await _evaluationService.EvaluateAndRankCandidateVendorsAsync(request, generatedByAgent: false, cancellationToken: cancellationToken);
-        return Ok(summary);
+        try
+        {
+            _logger.LogInformation("Processing evaluation for ProcurementRequest {ProcurementRequestId}", request.ProcurementRequestId);
+            var summary = await _evaluationService.EvaluateAndRankCandidateVendorsAsync(request, generatedByAgent: false, cancellationToken: cancellationToken);
+            return Ok(summary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to evaluate candidates for ProcurementRequest {ProcurementRequestId}", request.ProcurementRequestId);
+            return Problem(detail: ex.Message, statusCode: StatusCodes.Status500InternalServerError, title: "Evaluation Failed");
+        }
     }
 
     /// <summary>
@@ -104,7 +112,7 @@ public class VendorEvaluationController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of vendor evaluations ordered by rank.</returns>
     [HttpGet("procurement-request/{procurementRequestId:guid}")]
-    [Authorize(Roles = "PROCUREMENT_OFFICER,ADMIN")]
+    [Authorize(Roles = "PROCUREMENT_OFFICER,MANAGER,ADMIN")]
     [ProducesResponseType(typeof(IReadOnlyList<VendorEvaluationResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
