@@ -97,7 +97,7 @@ export default function EditVendorPage() {
     });
   };
 
-  if (isLoading) return <p>Loading…</p>;
+  if (isLoading) return <div className={styles.container}><p className={styles.subheading}>Loading vendor…</p></div>;
 
   return (
     <div className={styles.container}>
@@ -139,7 +139,7 @@ export default function EditVendorPage() {
             <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
           </div>
         </div>
-        {formError && <p className={styles.error}>{formError}</p>}
+        {formError && <div className={styles.errorBanner} role="alert">{formError}</div>}
         <div className={styles.actions}>
           <button type="button" onClick={() => navigate(`/vendors/${id}`)} className={styles.btnSecondary}>Cancel</button>
           <button type="submit" className={styles.btnPrimary} disabled={isPending}>{isPending ? 'Saving…' : 'Save Changes'}</button>

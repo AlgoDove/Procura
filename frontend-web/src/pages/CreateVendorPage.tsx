@@ -120,7 +120,7 @@ export default function CreateVendorPage() {
           </div>
         </div>
 
-        {formError && <p className={styles.error}>{formError}</p>}
+        {formError && <div className={styles.errorBanner} role="alert">{formError}</div>}
         <div className={styles.actions}>
           <button type="button" onClick={() => navigate('/vendors')} className={styles.btnSecondary}>Cancel</button>
           <button type="submit" className={styles.btnPrimary} disabled={isPending}>
