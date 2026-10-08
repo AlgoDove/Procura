@@ -276,12 +276,12 @@ if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Ena
     app.UseSwaggerUI();
 }
 
-if (!app.Environment.IsDevelopment())
+app.UseCors("FrontendPolicy");
+
+if (!app.Environment.IsDevelopment() && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT")))
 {
     app.UseHttpsRedirection();
 }
-
-app.UseCors("FrontendPolicy");
 
 app.UseAuthentication();
 app.UseAuthorization();
