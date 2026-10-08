@@ -61,26 +61,29 @@ builder.Services.AddControllers()
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var databaseUrl = builder.Configuration["DATABASE_URL"];
 
-if (!string.IsNullOrWhiteSpace(databaseUrl) && (databaseUrl.StartsWith("postgres://") || databaseUrl.StartsWith("postgresql://")))
+// Allow DATABASE_URL or ConnectionStrings:DefaultConnection in URI format (postgres:// or postgresql://)
+var rawToParse = !string.IsNullOrWhiteSpace(databaseUrl) ? databaseUrl : connectionString;
+if (!string.IsNullOrWhiteSpace(rawToParse) && (rawToParse.StartsWith("postgres://") || rawToParse.StartsWith("postgresql://")))
 {
     try
     {
-        var uri = new Uri(databaseUrl);
+        var uri = new Uri(rawToParse);
         var userInfo = uri.UserInfo.Split(':');
         var npgsqlBuilder = new Npgsql.NpgsqlConnectionStringBuilder
         {
             Host = uri.Host,
             Port = uri.Port > 0 ? uri.Port : 5432,
-            Username = userInfo.Length > 0 ? userInfo[0] : "",
-            Password = userInfo.Length > 1 ? userInfo[1] : "",
+            Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "",
+            Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "",
             Database = uri.AbsolutePath.TrimStart('/'),
-            SslMode = Npgsql.SslMode.Prefer
+            SslMode = Npgsql.SslMode.Require,
+            TrustServerCertificate = true
         };
         connectionString = npgsqlBuilder.ToString();
     }
     catch
     {
-        // Fall back to default if parsing fails
+        // Fall back to original value if parsing fails
     }
 }
 
