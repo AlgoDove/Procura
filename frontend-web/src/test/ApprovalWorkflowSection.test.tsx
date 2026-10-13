@@ -80,7 +80,7 @@ describe('ApprovalWorkflowSection', () => {
     renderSection('req-1');
 
     expect(await screen.findByText(/approval lifecycle/i)).toBeTruthy();
-    expect(screen.getByText(/manager review required/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /manager review required/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /✓ approve request/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /request revision/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /✗ reject request/i })).toBeTruthy();
